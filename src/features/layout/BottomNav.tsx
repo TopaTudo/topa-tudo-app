@@ -45,10 +45,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               key={tab.id}
               type="button"
               onClick={() => onNavigate(tab.id)}
+              aria-label={tab.label}
               className={`flex flex-col items-center justify-center min-h-[52px] h-full rounded-xl transition-all active:scale-95 ${
                 isActive
                   ? 'text-amberAlert-500 font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
+                  : 'text-slate-300 hover:text-white'
               }`}
             >
               <div
@@ -69,10 +70,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         <button
           type="button"
           onClick={onOpenDrawer}
+          aria-label="Mais opções e menu de gestão"
           className={`flex flex-col items-center justify-center min-h-[52px] h-full rounded-xl transition-all active:scale-95 ${
             ['financeiro', 'dashboard', 'ferramentas', 'servicos', 'tecnicos'].includes(currentTab)
               ? 'text-blue-400 font-bold'
-              : 'text-slate-400 hover:text-slate-200'
+              : 'text-slate-300 hover:text-white'
           }`}
         >
           <div

@@ -229,15 +229,15 @@ export const AgendaView: React.FC = () => {
 
       {/* List of Visits */}
       {loading ? (
-        <div className="p-12 text-center text-slate-400">
+        <div className="p-12 text-center text-slate-600">
           <div className="w-10 h-10 border-4 border-industrial-800 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="font-semibold text-sm">Carregando horários...</p>
         </div>
       ) : filteredSchedule.length === 0 ? (
-        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-500">
-          <CalendarIcon className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-          <h3 className="font-bold text-base text-slate-700">Nenhum atendimento neste dia</h3>
-          <p className="text-xs text-slate-400 mt-1">
+        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-600">
+          <CalendarIcon className="w-10 h-10 text-slate-500 mx-auto mb-2" />
+          <h3 className="font-bold text-base text-slate-800">Nenhum atendimento neste dia</h3>
+          <p className="text-xs text-slate-600 mt-1">
             Selecione outra data ou adicione uma nova visita técnica.
           </p>
         </div>
@@ -284,7 +284,7 @@ export const AgendaView: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
+                  <div className="text-[11px] text-slate-600 mt-1 flex items-center gap-1">
                     <User className="w-3 h-3" />
                     <span>Técnico: {item.tech?.name || 'Não atribuído'}</span>
                   </div>
@@ -348,7 +348,8 @@ export const AgendaView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-lg text-slate-300 hover:text-white"
+                aria-label="Fechar agendamento"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-industrial-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>

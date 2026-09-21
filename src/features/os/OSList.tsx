@@ -131,7 +131,8 @@ export const OSList: React.FC = () => {
           <button
             type="button"
             onClick={fetchOrders}
-            className="p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+            aria-label="Atualizar lista de ordens de serviço"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 active:scale-95 transition-all"
             title="Atualizar lista"
           >
             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
@@ -155,7 +156,7 @@ export const OSList: React.FC = () => {
       <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
         {/* Search Bar */}
         <div className="relative">
-          <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-3" />
+          <Search className="w-5 h-5 text-slate-500 absolute left-3.5 top-3" />
           <input
             type="text"
             placeholder="Buscar por código, cliente, endereço ou serviço..."
@@ -224,15 +225,15 @@ export const OSList: React.FC = () => {
 
       {/* Orders Cards Grid */}
       {loading ? (
-        <div className="p-12 text-center text-slate-400">
+        <div className="p-12 text-center text-slate-600">
           <div className="w-10 h-10 border-4 border-industrial-800 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="font-semibold text-sm">Carregando ordens de serviço...</p>
         </div>
       ) : filteredOrders.length === 0 ? (
-        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-500">
-          <AlertCircle className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-          <h3 className="font-bold text-base text-slate-700">Nenhuma OS encontrada</h3>
-          <p className="text-xs text-slate-400 mt-1">
+        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-600">
+          <AlertCircle className="w-10 h-10 text-slate-500 mx-auto mb-2" />
+          <h3 className="font-bold text-base text-slate-800">Nenhuma OS encontrada</h3>
+          <p className="text-xs text-slate-600 mt-1">
             {searchQuery
               ? 'Tente ajustar os termos de pesquisa ou filtros.'
               : 'Clique em "Nova OS" para abrir a primeira ordem de serviço.'}
@@ -272,26 +273,26 @@ export const OSList: React.FC = () => {
                   <h3 className="font-bold text-slate-900 text-base leading-snug group-hover:text-industrial-800 transition-colors">
                     {order.client?.name || 'Cliente Avulso'}
                   </h3>
-                  <p className="text-xs text-slate-600 line-clamp-2 mt-1 leading-relaxed">
+                  <p className="text-xs text-slate-700 line-clamp-2 mt-1 leading-relaxed">
                     {order.description || 'Sem descrição detalhada.'}
                   </p>
                 </div>
 
                 {/* Address & Tech Footer */}
-                <div className="pt-2 border-t border-slate-100 flex flex-col gap-1.5 text-xs text-slate-500">
+                <div className="pt-2 border-t border-slate-100 flex flex-col gap-1.5 text-xs text-slate-600">
                   {(order.address || order.client?.address) && (
                     <div className="flex items-center gap-1.5 truncate">
-                      <Navigation className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <Navigation className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                       <span className="truncate">
                         {order.address || order.client?.address}
                       </span>
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between text-[11px] pt-1 text-slate-400">
+                  <div className="flex items-center justify-between text-[11px] pt-1 text-slate-600">
                     <div className="flex items-center gap-1">
-                      <User className="w-3.5 h-3.5 text-slate-400" />
-                      <span className="font-medium text-slate-600">
+                      <User className="w-3.5 h-3.5 text-slate-500" />
+                      <span className="font-medium text-slate-700">
                         {order.tech?.name || 'Não atribuído'}
                       </span>
                     </div>

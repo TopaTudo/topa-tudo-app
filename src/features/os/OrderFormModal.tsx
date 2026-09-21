@@ -284,7 +284,8 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-industrial-800 text-slate-300 hover:text-white active:scale-95"
+            aria-label="Fechar formulário de OS"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-industrial-800 text-slate-300 hover:text-white active:scale-95 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>

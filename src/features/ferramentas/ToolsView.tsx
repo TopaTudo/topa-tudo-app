@@ -229,7 +229,7 @@ export const ToolsView: React.FC = () => {
       {/* Search & Filter */}
       <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
         <div className="relative">
-          <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-3" />
+          <Search className="w-5 h-5 text-slate-500 absolute left-3.5 top-3" />
           <input
             type="text"
             placeholder="Buscar ferramenta por nome, código ou responsável..."
@@ -268,15 +268,15 @@ export const ToolsView: React.FC = () => {
 
       {/* Tools Grid */}
       {loading ? (
-        <div className="p-12 text-center text-slate-400">
+        <div className="p-12 text-center text-slate-600">
           <div className="w-10 h-10 border-4 border-industrial-800 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="font-semibold text-sm">Carregando inventário de ferramentas...</p>
         </div>
       ) : filteredTools.length === 0 ? (
-        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-500">
-          <Hammer className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-          <h3 className="font-bold text-base text-slate-700">Nenhuma ferramenta encontrada</h3>
-          <p className="text-xs text-slate-400 mt-1">
+        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-600">
+          <Hammer className="w-10 h-10 text-slate-500 mx-auto mb-2" />
+          <h3 className="font-bold text-base text-slate-800">Nenhuma ferramenta encontrada</h3>
+          <p className="text-xs text-slate-600 mt-1">
             Cadastre as ferramentas da oficina para gerenciar empréstimos.
           </p>
         </div>
@@ -296,7 +296,7 @@ export const ToolsView: React.FC = () => {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       {tool.code && (
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">
                           TAG: {tool.code}
                         </span>
                       )}
@@ -343,7 +343,7 @@ export const ToolsView: React.FC = () => {
                   )}
 
                   {tool.notes && (
-                    <p className="text-xs text-slate-500 mt-2 italic">{tool.notes}</p>
+                    <p className="text-xs text-slate-600 mt-2 italic">{tool.notes}</p>
                   )}
                 </div>
 
@@ -356,7 +356,7 @@ export const ToolsView: React.FC = () => {
                         setLoanTool(tool);
                         setTargetTechId(currentProfile?.id || '');
                       }}
-                      className="flex-1 py-2 px-3 rounded-xl bg-industrial-800 hover:bg-industrial-700 text-white active:scale-95 text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs"
+                      className="flex-1 min-h-[44px] py-2 px-3 rounded-xl bg-industrial-800 hover:bg-industrial-700 text-white active:scale-95 text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs"
                     >
                       <Send className="w-3.5 h-3.5" />
                       <span>Emprestar</span>
@@ -367,7 +367,7 @@ export const ToolsView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleReturnTool(tool)}
-                      className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95 text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs"
+                      className="flex-1 min-h-[44px] py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95 text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       <span>Devolver ao Estoque</span>
@@ -377,7 +377,8 @@ export const ToolsView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleToggleMaintenance(tool)}
-                    className="p-2 rounded-xl text-slate-500 hover:text-amberAlert-600 hover:bg-slate-100 active:scale-90"
+                    aria-label={isMaint ? `Finalizar manutenção de ${tool.name}` : `Enviar ${tool.name} para manutenção`}
+                    className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-600 hover:text-amberAlert-600 hover:bg-slate-100 active:scale-90 transition-colors"
                     title={isMaint ? 'Finalizar manutenção' : 'Enviar para manutenção'}
                   >
                     <Wrench className="w-4 h-4" />
@@ -386,7 +387,8 @@ export const ToolsView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleOpenEdit(tool)}
-                    className="p-2 rounded-xl text-slate-500 hover:text-industrial-800 hover:bg-slate-100 active:scale-90"
+                    aria-label={`Editar ferramenta ${tool.name}`}
+                    className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-600 hover:text-industrial-800 hover:bg-slate-100 active:scale-90 transition-colors"
                     title="Editar ferramenta"
                   >
                     <Edit2 className="w-4 h-4" />
@@ -410,7 +412,8 @@ export const ToolsView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setLoanTool(null)}
-                className="p-1 rounded-lg text-slate-300 hover:text-white"
+                aria-label="Fechar empréstimo de ferramenta"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-industrial-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -469,7 +472,8 @@ export const ToolsView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-lg text-slate-300 hover:text-white"
+                aria-label="Fechar formulário de ferramenta"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-industrial-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>

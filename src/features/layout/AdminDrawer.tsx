@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/core/context/AuthContext';
+import { useToast } from '@/core/context/ToastContext';
+import { generateAndDownloadBackup } from '@/core/services/backupService';
+import { BackupManagerModal } from '@/features/dashboard/BackupManagerModal';
 import {
   DollarSign,
   Hammer,
@@ -14,6 +17,9 @@ import {
   Calendar,
   Users,
   ClipboardList,
+  Database,
+  RefreshCw,
+  Layers,
 } from 'lucide-react';
 
 interface AdminDrawerProps {
@@ -30,12 +36,33 @@ export const AdminDrawer: React.FC<AdminDrawerProps> = ({
   currentTab,
 }) => {
   const { currentProfile, logout, isAdmin } = useAuth();
+  const { success, error: toastError } = useToast();
+
+  const [isBackupLoading, setIsBackupLoading] = useState(false);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
 
   if (!isOpen) return null;
 
   const handleSelect = (tab: string) => {
     onNavigate(tab);
     onClose();
+  };
+
+  const handleExecuteBackup = async () => {
+    if (!isAdmin) {
+      toastError('Acesso restrito', 'Apenas administradores podem fazer backup do banco de dados.');
+      return;
+    }
+    setIsBackupLoading(true);
+    try {
+      await generateAndDownloadBackup(currentProfile?.name);
+      success('Backup exportado com sucesso!');
+    } catch (err: any) {
+      console.error('Erro ao exportar backup:', err);
+      toastError('Falha no backup', err.message || 'Erro inesperado ao gerar backup.');
+    } finally {
+      setIsBackupLoading(false);
+    }
   };
 
   const navItems = [
@@ -127,7 +154,8 @@ export const AdminDrawer: React.FC<AdminDrawerProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95 transition-all"
+            aria-label="Fechar menu administrativo"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95 transition-all"
           >
             <X className="w-6 h-6" />
           </button>
@@ -165,6 +193,25 @@ export const AdminDrawer: React.FC<AdminDrawerProps> = ({
 
         {/* Drawer Footer */}
         <div className="p-4 border-t border-slate-800 bg-slate-950/60 space-y-2">
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={handleExecuteBackup}
+              disabled={isBackupLoading}
+              className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-industrial-800 hover:bg-industrial-700 text-amberAlert-400 border border-industrial-600 font-semibold text-sm active:scale-95 transition-all disabled:opacity-50 shadow-sm"
+              title="Fazer Backup Completo do Banco de Dados"
+            >
+              {isBackupLoading ? (
+                <RefreshCw className="w-4 h-4 animate-spin text-amberAlert-400" />
+              ) : (
+                <Database className="w-4 h-4 text-amberAlert-400" />
+              )}
+              <span>
+                {isBackupLoading ? 'Exportando Backup...' : 'Fazer Backup Completo do Banco de Dados'}
+              </span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => {
@@ -178,6 +225,14 @@ export const AdminDrawer: React.FC<AdminDrawerProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Modal de Gestão Completa de Backups na Nuvem */}
+      {isAdmin && (
+        <BackupManagerModal
+          isOpen={isBackupModalOpen}
+          onClose={() => setIsBackupModalOpen(false)}
+        />
+      )}
     </div>
   );
 };

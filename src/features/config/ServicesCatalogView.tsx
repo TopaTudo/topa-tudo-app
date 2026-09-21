@@ -157,7 +157,7 @@ export const ServicesCatalogView: React.FC = () => {
       {/* Search Bar */}
       <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
         <div className="relative">
-          <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-3" />
+          <Search className="w-5 h-5 text-slate-500 absolute left-3.5 top-3" />
           <input
             type="text"
             placeholder="Buscar por serviço ou categoria..."
@@ -170,15 +170,15 @@ export const ServicesCatalogView: React.FC = () => {
 
       {/* Services List */}
       {loading ? (
-        <div className="p-12 text-center text-slate-400">
+        <div className="p-12 text-center text-slate-600">
           <div className="w-10 h-10 border-4 border-industrial-800 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="font-semibold text-sm">Carregando catálogo...</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-500">
-          <BookOpen className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-          <h3 className="font-bold text-base text-slate-700">Nenhum serviço cadastrado</h3>
-          <p className="text-xs text-slate-400 mt-1">Toque em "Novo Serviço" para incluir itens.</p>
+        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-600">
+          <BookOpen className="w-10 h-10 text-slate-500 mx-auto mb-2" />
+          <h3 className="font-bold text-base text-slate-800">Nenhum serviço cadastrado</h3>
+          <p className="text-xs text-slate-600 mt-1">Toque em "Novo Serviço" para incluir itens.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -201,7 +201,8 @@ export const ServicesCatalogView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleOpenEdit(service)}
-                  className="p-2 rounded-xl text-slate-500 hover:text-industrial-800 hover:bg-slate-100"
+                  aria-label={`Editar serviço ${service.title}`}
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-xl text-slate-600 hover:text-industrial-800 hover:bg-slate-100 transition-colors"
                   title="Editar serviço"
                 >
                   <Edit2 className="w-4 h-4" />
@@ -209,7 +210,8 @@ export const ServicesCatalogView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleDelete(service.id, service.title)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                  aria-label={`Excluir serviço ${service.title}`}
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                   title="Excluir serviço"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -231,7 +233,8 @@ export const ServicesCatalogView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-lg text-slate-300 hover:text-white"
+                aria-label="Fechar formulário de serviço"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-industrial-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>

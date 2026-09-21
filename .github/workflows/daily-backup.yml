@@ -1,0 +1,60 @@
+name: Backup Diário do Banco de Dados com Rotação
+
+on:
+  schedule:
+    # Executa diariamente às 03:00 UTC (00:00 Horário de Brasília)
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      retention_days:
+        description: 'Dias de retenção de histórico (mínimo de 2 backups com 24h de espaço)'
+        required: false
+        default: '2'
+        type: string
+
+concurrency:
+  group: daily-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Executar Backup e Rotação
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Instalar Dependências
+        run: npm ci || npm install
+
+      - name: Executar Validação e Testes de Rotação
+        run: npm run test:backup
+
+      - name: Executar Backup do PostgreSQL e Upload para Supabase Storage
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://postgres:%40Edu99001628@db.nlnkwrfzqvhncwfuuogo.supabase.co:5432/postgres' }}
+          DATABASE_POOLER_URL: ${{ secrets.DATABASE_POOLER_URL || 'postgresql://postgres.nlnkwrfzqvhncwfuuogo:%40Edu99001628@aws-0-us-east-2.pooler.supabase.com:5432/postgres' }}
+          DATABASE_POOLER_TX_URL: ${{ secrets.DATABASE_POOLER_TX_URL || 'postgresql://postgres.nlnkwrfzqvhncwfuuogo:%40Edu99001628@aws-0-us-east-2.pooler.supabase.com:6543/postgres' }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://nlnkwrfzqvhncwfuuogo.supabase.co' }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_KEY || 'sb_publishable_I1YC5LSgvIXoKkEoXcD7PA_V0Pr-sGK' }}
+          BACKUP_RETENTION_DAYS: ${{ github.event.inputs.retention_days || '2' }}
+        run: node scripts/backup-database.mjs
+
+      - name: Salvar Backup como Artefato do GitHub Actions (Retenção de 30 dias)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: topatudo-database-backup-${{ github.run_id }}
+          path: |
+            backups/*.json.gz
+            backups/*.manifest.json
+          retention-days: 30
+          if-no-files-found: error

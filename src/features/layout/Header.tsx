@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/core/context/AuthContext';
+import { useOnlineStatus } from '@/core/hooks/useOnlineStatus';
 import { supabase } from '@/core/supabase';
 import type { InventoryStockView } from '@/core/types/database';
-import { AlertTriangle, LogOut, Wrench, ShieldCheck, UserCheck, X } from 'lucide-react';
+import { AlertTriangle, LogOut, Wrench, ShieldCheck, UserCheck, X, WifiOff } from 'lucide-react';
 
 interface HeaderProps {
   onNavigate: (tab: string) => void;
@@ -11,6 +12,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onNavigate, currentTab }) => {
   const { currentProfile, logout, isAdmin } = useAuth();
+  const isOnline = useOnlineStatus();
   const [lowStockItems, setLowStockItems] = useState<InventoryStockView[]>([]);
   const [showLowStockModal, setShowLowStockModal] = useState(false);
 
@@ -46,6 +48,18 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentTab }) => {
   return (
     <>
       <header className="sticky top-0 z-40 bg-industrial-900 border-b border-industrial-800 text-white shadow-md select-none">
+        {/* Offline Status Banner */}
+        {!isOnline && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="bg-amber-600 text-white text-xs font-semibold px-4 py-2 flex items-center justify-center gap-2 shadow-inner transition-colors duration-200"
+          >
+            <WifiOff className="w-4 h-4 shrink-0 animate-pulse text-amber-100" />
+            <span>Modo Offline — exibindo dados salvos</span>
+          </div>
+        )}
+
         <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between gap-2">
           {/* Logo Brand */}
           <div
@@ -72,7 +86,8 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentTab }) => {
               <button
                 type="button"
                 onClick={() => setShowLowStockModal(true)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold active:scale-95 transition-transform animate-pulse"
+                aria-label={`${lowStockItems.length} materiais com estoque crítico`}
+                className="min-h-[44px] flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold active:scale-95 transition-transform animate-pulse"
                 title={`${lowStockItems.length} materiais com estoque crítico`}
               >
                 <AlertTriangle className="w-4 h-4 text-amberAlert-500" />
@@ -94,8 +109,9 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentTab }) => {
               <button
                 type="button"
                 onClick={logout}
+                aria-label="Sair da conta"
                 title="Sair / Trocar de usuário"
-                className="w-8 h-8 rounded-lg bg-industrial-700 hover:bg-rose-900/60 text-slate-300 hover:text-white flex items-center justify-center active:scale-90 transition-all"
+                className="min-h-[44px] min-w-[44px] rounded-lg bg-industrial-700 hover:bg-rose-900/60 text-slate-300 hover:text-white flex items-center justify-center active:scale-90 transition-all"
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -116,7 +132,8 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentTab }) => {
               <button
                 type="button"
                 onClick={() => setShowLowStockModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                aria-label="Fechar alerta de estoque"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>

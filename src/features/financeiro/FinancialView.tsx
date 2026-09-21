@@ -210,7 +210,7 @@ export const FinancialView: React.FC = () => {
             <TrendingUp className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-xs text-slate-400 font-bold uppercase block">
+            <span className="text-xs text-slate-600 font-bold uppercase block">
               Receitas Confirmadas
             </span>
             <span className="text-xl font-black text-emerald-700 leading-tight">
@@ -225,7 +225,7 @@ export const FinancialView: React.FC = () => {
             <TrendingDown className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-xs text-slate-400 font-bold uppercase block">
+            <span className="text-xs text-slate-600 font-bold uppercase block">
               Despesas Realizadas
             </span>
             <span className="text-xl font-black text-rose-700 leading-tight">
@@ -257,7 +257,7 @@ export const FinancialView: React.FC = () => {
       {/* Filter and Search Toolbar */}
       <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
         <div className="relative">
-          <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-3" />
+          <Search className="w-5 h-5 text-slate-500 absolute left-3.5 top-3" />
           <input
             type="text"
             placeholder="Buscar por descrição ou categoria..."
@@ -344,15 +344,15 @@ export const FinancialView: React.FC = () => {
 
       {/* Transactions List */}
       {loading ? (
-        <div className="p-12 text-center text-slate-400">
+        <div className="p-12 text-center text-slate-600">
           <div className="w-10 h-10 border-4 border-industrial-800 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="font-semibold text-sm">Carregando movimentações financeiras...</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-500">
-          <DollarSign className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-          <h3 className="font-bold text-base text-slate-700">Nenhum lançamento encontrado</h3>
-          <p className="text-xs text-slate-400 mt-1">
+        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-600">
+          <DollarSign className="w-10 h-10 text-slate-500 mx-auto mb-2" />
+          <h3 className="font-bold text-base text-slate-800">Nenhum lançamento encontrado</h3>
+          <p className="text-xs text-slate-600 mt-1">
             As ordens de serviço concluídas geram lançamentos automáticos de receita.
           </p>
         </div>
@@ -441,7 +441,8 @@ export const FinancialView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-lg text-slate-300 hover:text-white"
+                aria-label="Fechar lançamento financeiro"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-industrial-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>

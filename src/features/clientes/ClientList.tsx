@@ -190,7 +190,7 @@ export const ClientList: React.FC = () => {
       {/* Search Bar */}
       <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
         <div className="relative">
-          <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-3" />
+          <Search className="w-5 h-5 text-slate-500 absolute left-3.5 top-3" />
           <input
             type="text"
             placeholder="Buscar por nome, telefone ou endereço..."
@@ -203,15 +203,15 @@ export const ClientList: React.FC = () => {
 
       {/* Clients Grid */}
       {loading ? (
-        <div className="p-12 text-center text-slate-400">
+        <div className="p-12 text-center text-slate-600">
           <div className="w-10 h-10 border-4 border-industrial-800 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="font-semibold text-sm">Carregando base de clientes...</p>
         </div>
       ) : filteredClients.length === 0 ? (
-        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-500">
-          <Users className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-          <h3 className="font-bold text-base text-slate-700">Nenhum cliente cadastrado</h3>
-          <p className="text-xs text-slate-400 mt-1">Toque em "Novo Cliente" para começar.</p>
+        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-600">
+          <Users className="w-10 h-10 text-slate-500 mx-auto mb-2" />
+          <h3 className="font-bold text-base text-slate-800">Nenhum cliente cadastrado</h3>
+          <p className="text-xs text-slate-600 mt-1">Toque em "Novo Cliente" para começar.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -240,7 +240,8 @@ export const ClientList: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleOpenEdit(client)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-industrial-800 hover:bg-slate-100"
+                      aria-label={`Editar cadastro de ${client.name}`}
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-lg text-slate-600 hover:text-industrial-800 hover:bg-slate-100 transition-colors"
                       title="Editar cadastro"
                     >
                       <Edit2 className="w-4 h-4" />
@@ -250,7 +251,7 @@ export const ClientList: React.FC = () => {
                   {/* LTV & Metrics strip */}
                   <div className="grid grid-cols-2 gap-2 mt-3 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
                     <div>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase block">
+                      <span className="text-[10px] text-slate-600 font-bold uppercase block">
                         Faturamento LTV
                       </span>
                       <span className="font-black text-emerald-700 text-sm">
@@ -258,7 +259,7 @@ export const ClientList: React.FC = () => {
                       </span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase block">
+                      <span className="text-[10px] text-slate-600 font-bold uppercase block">
                         Total de OSs
                       </span>
                       <span className="font-bold text-slate-800 text-sm">
@@ -275,7 +276,7 @@ export const ClientList: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => openWhatsApp(client.phone!, client.name)}
-                        className="flex-1 py-2 px-3 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-95 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                        className="flex-1 min-h-[44px] py-2 px-3 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-95 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
                       >
                         <MessageCircle className="w-4 h-4" />
                         <span>WhatsApp</span>
@@ -283,20 +284,21 @@ export const ClientList: React.FC = () => {
 
                       <a
                         href={`tel:${client.phone}`}
-                        className="py-2 px-3 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                        aria-label={`Ligar para ${client.name}`}
+                        className="min-h-[44px] min-w-[44px] py-2 px-3 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
                         title="Ligar"
                       >
                         <Phone className="w-4 h-4" />
                       </a>
                     </>
                   ) : (
-                    <span className="text-xs text-slate-400 italic">Sem telefone cadastrado</span>
+                    <span className="text-xs text-slate-500 italic">Sem telefone cadastrado</span>
                   )}
 
                   <button
                     type="button"
                     onClick={() => setSelectedClient(client)}
-                    className="py-2 px-3 rounded-xl bg-industrial-50 text-industrial-900 hover:bg-industrial-100 active:scale-95 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                    className="min-h-[44px] py-2 px-3 rounded-xl bg-industrial-50 text-industrial-900 hover:bg-industrial-100 active:scale-95 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
                   >
                     <ClipboardList className="w-4 h-4" />
                     <span>Histórico</span>
@@ -320,7 +322,8 @@ export const ClientList: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSelectedClient(null)}
-                className="p-1 rounded-lg text-slate-300 hover:text-white"
+                aria-label="Fechar histórico de ordens de serviço"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-industrial-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -328,7 +331,7 @@ export const ClientList: React.FC = () => {
 
             <div className="p-4 sm:p-6 overflow-y-auto space-y-3">
               {clientOrders.length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-6">
+                <p className="text-xs text-slate-600 text-center py-6">
                   Nenhuma ordem de serviço registrada para este cliente.
                 </p>
               ) : (
@@ -346,7 +349,7 @@ export const ClientList: React.FC = () => {
                           {ord.status}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-600 mt-1 line-clamp-1">
+                      <p className="text-xs text-slate-700 mt-1 line-clamp-1">
                         {ord.description || 'Serviço'}
                       </p>
                     </div>
@@ -355,7 +358,7 @@ export const ClientList: React.FC = () => {
                       <span className="font-bold text-sm text-emerald-700 block">
                         R$ {Number(ord.total_price).toFixed(2)}
                       </span>
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-[10px] text-slate-600">
                         {new Date(ord.created_at).toLocaleDateString('pt-BR')}
                       </span>
                     </div>
@@ -378,7 +381,8 @@ export const ClientList: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-lg text-slate-300 hover:text-white"
+                aria-label="Fechar formulário de cliente"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-industrial-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>

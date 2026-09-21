@@ -206,7 +206,8 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                   onEdit(order);
                   onClose();
                 }}
-                className="p-2 rounded-xl bg-industrial-800 text-slate-200 hover:text-white active:scale-95 transition-all"
+                aria-label="Editar OS"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-industrial-800 text-slate-200 hover:text-white active:scale-95 transition-all"
                 title="Editar OS"
               >
                 <Edit3 className="w-5 h-5" />
@@ -215,7 +216,8 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-xl bg-industrial-800 text-slate-200 hover:text-white active:scale-95 transition-all"
+              aria-label="Fechar detalhes da OS"
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-industrial-800 text-slate-200 hover:text-white active:scale-95 transition-all"
             >
               <X className="w-5 h-5" />
             </button>
@@ -224,9 +226,9 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
 
         {/* Scroll Content */}
         {loading || !order ? (
-          <div className="p-12 flex flex-col items-center justify-center text-slate-400">
+          <div className="p-12 flex flex-col items-center justify-center text-slate-600">
             <Loader2 className="w-10 h-10 animate-spin text-industrial-800 mb-3" />
-            <p className="font-medium text-sm">Carregando detalhes da OS...</p>
+            <p className="font-semibold text-sm">Carregando detalhes da OS...</p>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">

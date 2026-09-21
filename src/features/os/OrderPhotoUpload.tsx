@@ -112,7 +112,8 @@ export const OrderPhotoUpload: React.FC<OrderPhotoUploadProps> = ({
                 href={url}
                 target="_blank"
                 rel="noreferrer"
-                className="p-1.5 rounded-lg bg-white/90 text-slate-800 hover:bg-white active:scale-90"
+                aria-label="Ampliar foto"
+                className="min-h-[44px] min-w-[44px] p-2.5 rounded-lg bg-white/95 text-slate-900 hover:bg-white active:scale-90 flex items-center justify-center transition-all shadow-xs"
                 title="Ampliar foto"
               >
                 <ExternalLink className="w-4 h-4" />
@@ -121,7 +122,8 @@ export const OrderPhotoUpload: React.FC<OrderPhotoUploadProps> = ({
                 <button
                   type="button"
                   onClick={() => handleRemovePhoto(idx)}
-                  className="p-1.5 rounded-lg bg-rose-600 text-white hover:bg-rose-700 active:scale-90"
+                  aria-label="Excluir foto"
+                  className="min-h-[44px] min-w-[44px] p-2.5 rounded-lg bg-rose-600 text-white hover:bg-rose-700 active:scale-90 flex items-center justify-center transition-all shadow-xs"
                   title="Excluir foto"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -134,9 +136,10 @@ export const OrderPhotoUpload: React.FC<OrderPhotoUploadProps> = ({
               <button
                 type="button"
                 onClick={() => handleRemovePhoto(idx)}
-                className="sm:hidden absolute top-1 right-1 p-1 rounded-full bg-rose-600/90 text-white shadow-md active:scale-90"
+                aria-label="Excluir foto"
+                className="sm:hidden absolute top-1 right-1 min-h-[44px] min-w-[44px] p-2.5 rounded-full bg-rose-600 text-white shadow-md active:scale-90 flex items-center justify-center"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-4 h-4" />
               </button>
             )}
           </div>

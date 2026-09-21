@@ -237,7 +237,7 @@ export const EstoqueScreen: React.FC = () => {
       {/* Search & Filter Strip */}
       <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
         <div className="relative">
-          <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-3" />
+          <Search className="w-5 h-5 text-slate-500 absolute left-3.5 top-3" />
           <input
             type="text"
             placeholder="Buscar por nome, código ou categoria de material..."
@@ -288,15 +288,15 @@ export const EstoqueScreen: React.FC = () => {
 
       {/* Materials Cards List */}
       {loading ? (
-        <div className="p-12 text-center text-slate-400">
+        <div className="p-12 text-center text-slate-600">
           <div className="w-10 h-10 border-4 border-industrial-800 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="font-semibold text-sm">Carregando saldo do estoque...</p>
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-500">
-          <Package className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-          <h3 className="font-bold text-base text-slate-700">Nenhum material cadastrado</h3>
-          <p className="text-xs text-slate-400 mt-1">Toque em "Novo Material" para alimentar o estoque.</p>
+        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-600">
+          <Package className="w-10 h-10 text-slate-500 mx-auto mb-2" />
+          <h3 className="font-bold text-base text-slate-800">Nenhum material cadastrado</h3>
+          <p className="text-xs text-slate-600 mt-1">Toque em "Novo Material" para alimentar o estoque.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -319,7 +319,7 @@ export const EstoqueScreen: React.FC = () => {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       {item.code && (
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">
                           Cód: {item.code}
                         </span>
                       )}
@@ -356,19 +356,19 @@ export const EstoqueScreen: React.FC = () => {
                   {/* Stock bounds & price */}
                   <div className="grid grid-cols-3 gap-2 mt-3 p-2 rounded-xl bg-slate-50 border border-slate-100 text-[11px]">
                     <div>
-                      <span className="text-slate-400 block text-[9px] font-bold uppercase">Mín / Máx</span>
+                      <span className="text-slate-600 block text-[9px] font-bold uppercase">Mín / Máx</span>
                       <span className="font-bold text-slate-700">
                         {item.min_stock} / {item.max_stock} {item.unit}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[9px] font-bold uppercase">Custo Médio</span>
+                      <span className="text-slate-600 block text-[9px] font-bold uppercase">Custo Médio</span>
                       <span className="font-bold text-slate-700">
                         R$ {Number(item.cost_price).toFixed(2)}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[9px] font-bold uppercase">Saídas Totais</span>
+                      <span className="text-slate-600 block text-[9px] font-bold uppercase">Saídas Totais</span>
                       <span className="font-bold text-slate-700">
                         {item.saidas} {item.unit}
                       </span>
@@ -381,7 +381,7 @@ export const EstoqueScreen: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleOpenMovement(item, 'entrada')}
-                    className="flex-1 py-2 px-2.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-95 text-xs font-bold flex items-center justify-center gap-1 transition-all"
+                    className="flex-1 min-h-[44px] py-2 px-2.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-95 text-xs font-bold flex items-center justify-center gap-1 transition-all"
                   >
                     <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-600" />
                     <span>+ Entrada</span>
@@ -390,7 +390,7 @@ export const EstoqueScreen: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleOpenMovement(item, 'saida')}
-                    className="flex-1 py-2 px-2.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 active:scale-95 text-xs font-bold flex items-center justify-center gap-1 transition-all"
+                    className="flex-1 min-h-[44px] py-2 px-2.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 active:scale-95 text-xs font-bold flex items-center justify-center gap-1 transition-all"
                   >
                     <ArrowUpRight className="w-3.5 h-3.5 text-rose-600" />
                     <span>- Saída</span>
@@ -399,7 +399,8 @@ export const EstoqueScreen: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleOpenHistory(item)}
-                    className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 active:scale-90"
+                    aria-label={`Ver histórico de movimentações de ${item.name}`}
+                    className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-600 hover:text-industrial-900 hover:bg-slate-100 active:scale-90 transition-colors"
                     title="Ver histórico de movimentações"
                   >
                     <History className="w-4 h-4" />
@@ -408,7 +409,8 @@ export const EstoqueScreen: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleOpenEditMaterial(item)}
-                    className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 active:scale-90"
+                    aria-label={`Editar dados do material ${item.name}`}
+                    className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-600 hover:text-industrial-900 hover:bg-slate-100 active:scale-90 transition-colors"
                     title="Editar dados do material"
                   >
                     <Edit2 className="w-4 h-4" />
@@ -432,7 +434,8 @@ export const EstoqueScreen: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsMovementModalOpen(false)}
-                className="p-1 rounded-lg text-slate-300 hover:text-white"
+                aria-label="Fechar lançamento de movimentação"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-industrial-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -526,7 +529,8 @@ export const EstoqueScreen: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsMaterialModalOpen(false)}
-                className="p-1 rounded-lg text-slate-300 hover:text-white"
+                aria-label="Fechar formulário de material"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-industrial-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -679,7 +683,8 @@ export const EstoqueScreen: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsHistoryModalOpen(false)}
-                className="p-1 rounded-lg text-slate-300 hover:text-white"
+                aria-label="Fechar histórico de movimentações"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-industrial-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -687,7 +692,7 @@ export const EstoqueScreen: React.FC = () => {
 
             <div className="p-4 sm:p-6 overflow-y-auto space-y-2.5">
               {movements.length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-6">
+                <p className="text-xs text-slate-600 text-center py-6">
                   Nenhuma movimentação registrada para este item.
                 </p>
               ) : (
@@ -716,13 +721,13 @@ export const EstoqueScreen: React.FC = () => {
                           <span className="font-bold text-slate-800 block">
                             {isEntry ? '+' : '-'} {mov.quantity} {historyMaterial.unit}
                           </span>
-                          <span className="text-[11px] text-slate-500">
+                          <span className="text-[11px] text-slate-600">
                             {mov.notes || (isEntry ? 'Entrada no estoque' : 'Baixa de estoque')}
                           </span>
                         </div>
                       </div>
 
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-[10px] text-slate-600">
                         {new Date(mov.created_at).toLocaleDateString('pt-BR', {
                           day: '2-digit',
                           month: '2-digit',

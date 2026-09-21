@@ -28,3 +28,8 @@ tsconfig.tsbuildinfo
 .env*
 !.env.example
 .vercel
+
+# Backups
+backups/*
+!backups/.gitkeep
+

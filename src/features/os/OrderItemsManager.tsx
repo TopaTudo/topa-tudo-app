@@ -275,7 +275,8 @@ export const OrderItemsManager: React.FC<OrderItemsManagerProps> = ({
                 <button
                   type="button"
                   onClick={() => handleRemoveItem(idx)}
-                  className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 active:scale-90"
+                  aria-label="Remover peça da OS"
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 active:scale-90 transition-colors"
                   title="Remover peça"
                 >
                   <Trash2 className="w-4 h-4" />

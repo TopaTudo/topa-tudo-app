@@ -4,6 +4,8 @@ import { useAuth } from '@/core/context/AuthContext';
 import { useToast } from '@/core/context/ToastContext';
 import { getLocalDateString } from '@/core/utils/date';
 import { sanitizeCsvCell } from '@/core/utils/security';
+import { generateAndDownloadBackup } from '@/core/services/backupService';
+import { BackupManagerModal } from '@/features/dashboard/BackupManagerModal';
 import type { Order, Profile, Transaction } from '@/core/types/database';
 import {
   BarChart3,
@@ -16,15 +18,19 @@ import {
   Calendar,
   Layers,
   FileSpreadsheet,
+  Database,
+  RefreshCw,
 } from 'lucide-react';
 
 export const DashboardView: React.FC = () => {
-  const { profiles, isAdmin } = useAuth();
+  const { currentProfile, profiles, isAdmin } = useAuth();
   const { success, error: toastError } = useToast();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isBackupLoading, setIsBackupLoading] = useState(false);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
 
   // Month selector (defaults to current month YYYY-MM in local timezone)
   const currentMonthStr = getLocalDateString().substring(0, 7);
@@ -189,9 +195,27 @@ export const DashboardView: React.FC = () => {
     success('Relatório CSV exportado com sucesso!');
   };
 
+  // Exportar Backup Completo do Banco de Dados
+  const handleExecuteBackup = async () => {
+    if (!isAdmin) {
+      toastError('Acesso restrito', 'Apenas administradores podem fazer backup do banco de dados.');
+      return;
+    }
+    setIsBackupLoading(true);
+    try {
+      await generateAndDownloadBackup(currentProfile?.name);
+      success('Backup exportado com sucesso!');
+    } catch (err: any) {
+      console.error('Erro ao exportar backup:', err);
+      toastError('Falha no backup', err.message || 'Erro inesperado ao gerar backup.');
+    } finally {
+      setIsBackupLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
-      {/* Top Banner & CSV Export Button */}
+      {/* Top Banner & Action Buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-industrial-900 tracking-tight">
@@ -202,7 +226,7 @@ export const DashboardView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Month Selector */}
           <input
             type="month"
@@ -214,11 +238,45 @@ export const DashboardView: React.FC = () => {
           <button
             type="button"
             onClick={handleExportCSV}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md active:scale-95 transition-all"
+            className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md active:scale-95 transition-all"
+            title="Exportar Relatório em Planilha CSV"
           >
             <FileSpreadsheet className="w-4 h-4" />
             <span className="hidden sm:inline">Exportar CSV</span>
           </button>
+
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={handleExecuteBackup}
+              disabled={isBackupLoading}
+              className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-industrial-900 hover:bg-industrial-800 text-amberAlert-400 border border-industrial-700 font-bold text-xs shadow-md active:scale-95 transition-all disabled:opacity-60"
+              title="Fazer Backup Completo do Banco de Dados"
+            >
+              {isBackupLoading ? (
+                <RefreshCw className="w-4 h-4 animate-spin text-amberAlert-400" />
+              ) : (
+                <Database className="w-4 h-4 text-amberAlert-400" />
+              )}
+              <span className="hidden sm:inline">
+                {isBackupLoading ? 'Exportando Backup...' : 'Fazer Backup Completo do Banco de Dados'}
+              </span>
+              <span className="sm:hidden">
+                {isBackupLoading ? 'Exportando...' : 'Backup DB'}
+              </span>
+            </button>
+          )}
+
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setIsBackupModalOpen(true)}
+              className="flex items-center justify-center p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 active:scale-95 transition-all"
+              title="Central de Gestão e Histórico de Backups na Nuvem"
+            >
+              <Layers className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -226,26 +284,26 @@ export const DashboardView: React.FC = () => {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {/* Revenue */}
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
-          <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">
+          <span className="text-[10px] text-slate-600 font-extrabold uppercase tracking-wider block">
             Faturamento Bruto
           </span>
           <span className="text-xl sm:text-2xl font-black text-emerald-700 block mt-1">
             R$ {kpis.totalRevenue.toFixed(2)}
           </span>
-          <span className="text-[11px] text-slate-500 mt-1 block">
+          <span className="text-[11px] text-slate-600 mt-1 block">
             {kpis.completedOrdersCount} OSs concluídas
           </span>
         </div>
 
         {/* Expenses */}
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
-          <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">
+          <span className="text-[10px] text-slate-600 font-extrabold uppercase tracking-wider block">
             Despesas do Mês
           </span>
           <span className="text-xl sm:text-2xl font-black text-rose-700 block mt-1">
             R$ {kpis.totalExpenses.toFixed(2)}
           </span>
-          <span className="text-[11px] text-slate-500 mt-1 block">Gastos operacionais</span>
+          <span className="text-[11px] text-slate-600 mt-1 block">Gastos operacionais</span>
         </div>
 
         {/* Net Profit */}
@@ -265,7 +323,7 @@ export const DashboardView: React.FC = () => {
 
         {/* Average Ticket */}
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
-          <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">
+          <span className="text-[10px] text-slate-600 font-extrabold uppercase tracking-wider block">
             Ticket Médio
           </span>
           <span className="text-xl sm:text-2xl font-black text-industrial-800 block mt-1">
@@ -346,6 +404,14 @@ export const DashboardView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Modal de Gestão Completa de Backups na Nuvem */}
+      {isAdmin && (
+        <BackupManagerModal
+          isOpen={isBackupModalOpen}
+          onClose={() => setIsBackupModalOpen(false)}
+        />
+      )}
     </div>
   );
 };

@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "backup": "node scripts/backup-database.mjs",
+    "test:backup": "node tests/test-backup-rotation.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",

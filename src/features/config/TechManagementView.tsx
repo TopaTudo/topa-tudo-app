@@ -251,7 +251,8 @@ export const TechManagementView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleOpenChangePin(p)}
-                      className="p-2 rounded-xl text-slate-400 hover:text-amberAlert-600 hover:bg-slate-100"
+                      aria-label={`Alterar PIN de ${p.name}`}
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-xl text-slate-600 hover:text-amberAlert-600 hover:bg-slate-100 transition-colors"
                       title="Alterar PIN"
                     >
                       <KeyRound className="w-4 h-4" />
@@ -259,7 +260,8 @@ export const TechManagementView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleOpenEdit(p)}
-                      className="p-2 rounded-xl text-slate-400 hover:text-industrial-800 hover:bg-slate-100"
+                      aria-label={`Editar dados de ${p.name}`}
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-xl text-slate-600 hover:text-industrial-800 hover:bg-slate-100 transition-colors"
                       title="Editar dados"
                     >
                       <Edit2 className="w-4 h-4" />
@@ -298,7 +300,8 @@ export const TechManagementView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-lg text-slate-300 hover:text-white"
+                aria-label="Fechar formulário de usuário"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-industrial-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -380,7 +383,8 @@ export const TechManagementView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsPinModalOpen(false)}
-                className="p-1 rounded-lg text-slate-300 hover:text-white"
+                aria-label="Fechar alteração de PIN"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-industrial-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
