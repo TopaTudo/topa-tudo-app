@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/core/context/AuthContext';
 import { useToast } from '@/core/context/ToastContext';
+import { Logo } from '@/core/ui/Logo';
 import { ShieldCheck, Wrench, Delete, ArrowLeft, Lock, UserCheck } from 'lucide-react';
 import type { Profile } from '@/core/types/database';
 
@@ -73,13 +74,14 @@ export const LoginScreen: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-industrial-950 flex flex-col justify-between p-4 sm:p-6 text-white select-none">
-      {/* Header Branding */}
-      <header className="pt-4 pb-2 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-industrial-700 to-industrial-900 shadow-xl border border-industrial-500/30 mb-3">
-          <Wrench className="w-8 h-8 text-amberAlert-500" />
-        </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">TOPA TUDO</h1>
-        <p className="text-xs sm:text-sm text-slate-400 mt-0.5">Operações & Gestão Técnica</p>
+      {/* Header Branding com Logotipo Oficial */}
+      <header className="pt-6 pb-2 flex flex-col items-center justify-center">
+        <Logo
+          variant="vertical"
+          size="lg"
+          theme="dark"
+          subtitle="Operações & Gestão Técnica"
+        />
       </header>
 
       {/* Main Content: Select Profile OR Enter PIN */}

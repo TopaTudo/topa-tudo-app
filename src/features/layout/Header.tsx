@@ -3,7 +3,8 @@ import { useAuth } from '@/core/context/AuthContext';
 import { useOnlineStatus } from '@/core/hooks/useOnlineStatus';
 import { supabase } from '@/core/supabase';
 import type { InventoryStockView } from '@/core/types/database';
-import { AlertTriangle, LogOut, Wrench, ShieldCheck, UserCheck, X, WifiOff } from 'lucide-react';
+import { Logo } from '@/core/ui/Logo';
+import { AlertTriangle, LogOut, ShieldCheck, UserCheck, X, WifiOff } from 'lucide-react';
 
 interface HeaderProps {
   onNavigate: (tab: string) => void;
@@ -61,22 +62,18 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentTab }) => {
         )}
 
         <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between gap-2">
-          {/* Logo Brand */}
+          {/* Logo Brand Oficial */}
           <div
             onClick={() => onNavigate('os')}
-            className="flex items-center gap-2.5 cursor-pointer active:opacity-80 transition-opacity"
+            className="cursor-pointer active:opacity-80 transition-opacity"
+            title="Ir para Ordens de Serviço"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-industrial-700 to-industrial-800 border border-blue-400/40 flex items-center justify-center shadow-inner">
-              <Wrench className="w-5 h-5 text-amberAlert-500" />
-            </div>
-            <div>
-              <span className="font-extrabold text-lg tracking-wider block leading-none">
-                TOPA TUDO
-              </span>
-              <span className="text-[10px] text-blue-200/80 font-medium tracking-wide uppercase">
-                {isAdmin ? 'Painel Gestor' : 'Terminal Técnico'}
-              </span>
-            </div>
+            <Logo
+              variant="horizontal"
+              size="sm"
+              theme="dark"
+              subtitle={isAdmin ? 'Painel Gestor' : 'Terminal Técnico'}
+            />
           </div>
 
           {/* Right Action Icons: Stock Alert + Profile Chip */}

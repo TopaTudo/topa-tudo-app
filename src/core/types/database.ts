@@ -86,6 +86,7 @@ export interface Order {
   total_price: number;
   payment_method: string | null;
   warranty_days: number;
+  signature_url?: string | null;
   photos_before: string[];
   photos_after: string[];
   scheduled_at: string | null;

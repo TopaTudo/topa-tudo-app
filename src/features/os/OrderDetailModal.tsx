@@ -4,7 +4,14 @@ import { useAuth } from '@/core/context/AuthContext';
 import { useToast } from '@/core/context/ToastContext';
 import type { Order, OrderItem } from '@/core/types/database';
 import { printOrderService } from '@/core/utils/printOS';
-import { generateReceiptMessage, openWhatsAppReceipt } from '@/core/utils/whatsappReceipt';
+import { generateReceiptMessage, generateOnTheWayMessage, openWhatsAppReceipt } from '@/core/utils/whatsappReceipt';
+import { SignaturePad } from '@/core/ui/SignaturePad';
+import {
+  PIX_CNPJ_FORMATTED,
+  generatePixPayload,
+  getPixQrCodeSvgSync,
+  copyToClipboard,
+} from '@/core/utils/pix';
 import { OrderPhotoUpload } from './OrderPhotoUpload';
 import {
   X,
@@ -25,6 +32,11 @@ import {
   Share2,
   Loader2,
   Printer,
+  PenTool,
+  QrCode,
+  Copy,
+  Check,
+  RotateCcw,
 } from 'lucide-react';
 
 interface OrderDetailModalProps {
@@ -50,6 +62,10 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
   const [showReceiptPrompt, setShowReceiptPrompt] = useState(false);
+  const [showSignaturePad, setShowSignaturePad] = useState(false);
+  const [copiedPixKey, setCopiedPixKey] = useState(false);
+  const [copiedPixCode, setCopiedPixCode] = useState(false);
+  const [showPixQrModal, setShowPixQrModal] = useState(false);
 
   useEffect(() => {
     if (!orderId || !isOpen) return;
@@ -178,7 +194,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
     printOrderService(order, items);
   };
 
-  // WhatsApp Link Helper
+  // WhatsApp Link Helper (Mensagem "A caminho" amigável e com emojis)
   const openWhatsApp = () => {
     if (!order?.client?.phone) {
       toastError('Cliente sem telefone', 'Adicione um número de WhatsApp ao cadastro.');
@@ -186,8 +202,11 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
     }
     const cleanPhone = order.client.phone.replace(/\D/g, '');
     const phoneWithCountry = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
+    const clientName = order.client.name || 'Cliente';
+    const techName = order.tech?.name || 'técnico';
+
     const text = encodeURIComponent(
-      `Olá ${order.client.name}! Aqui é da equipe Topa Tudo referente à Ordem de Serviço #${order.code} (${order.description || 'serviço'}).`
+      generateOnTheWayMessage(clientName, techName, order.code, order.description)
     );
     window.open(`https://wa.me/${phoneWithCountry}?text=${text}`, '_blank');
   };
@@ -216,6 +235,56 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
     await supabase.from('orders').update({ photos_after: newPhotos }).eq('id', order.id);
     setOrder({ ...order, photos_after: newPhotos });
     success('Fotos atualizadas!');
+  };
+
+  // Salvar Assinatura Digital do Cliente
+  const handleSaveSignature = async (signatureUrl: string) => {
+    if (!order) return;
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ signature_url: signatureUrl })
+        .eq('id', order.id);
+
+      if (error) throw error;
+
+      setOrder({ ...order, signature_url: signatureUrl });
+      setShowSignaturePad(false);
+      success('Assinatura do cliente salva!', 'A assinatura foi registrada com sucesso nesta OS.');
+      onRefresh();
+    } catch (err: any) {
+      console.error('Falha ao salvar assinatura digital:', err);
+      toastError('Erro ao salvar assinatura', err.message || 'Tente novamente');
+    }
+  };
+
+  // Copiar Chave PIX CNPJ
+  const handleCopyPixKey = async () => {
+    const ok = await copyToClipboard(PIX_CNPJ_FORMATTED);
+    if (ok) {
+      setCopiedPixKey(true);
+      success('Chave PIX copiada!', PIX_CNPJ_FORMATTED);
+      setTimeout(() => setCopiedPixKey(false), 2500);
+    } else {
+      toastError('Erro ao copiar', 'Não foi possível copiar a chave PIX.');
+    }
+  };
+
+  // Copiar Pix Copia e Cola (Payload Oficial EMV)
+  const handleCopyPixCode = async () => {
+    if (!order) return;
+    const pixPayload = generatePixPayload({
+      amount: Number(order.total_price || 0),
+      txid: `OS${String(order.code).padStart(5, '0')}`,
+    });
+    const ok = await copyToClipboard(pixPayload);
+    if (ok) {
+      setCopiedPixCode(true);
+      success('Código Pix Copia e Cola copiado!', 'Cole no aplicativo do seu banco para efetuar o pagamento.');
+      setTimeout(() => setCopiedPixCode(false), 2500);
+    } else {
+      toastError('Erro ao copiar', 'Não foi possível copiar o código PIX.');
+    }
   };
 
   return (
@@ -432,6 +501,165 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
               </div>
             </div>
 
+            {/* PIX Quick Pay Card */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50/90 to-sky-50/60 border border-blue-200/90 shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                    <QrCode className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-black text-blue-950 uppercase tracking-wide block leading-none">
+                      Pagamento via PIX
+                    </span>
+                    <span className="text-[10px] text-blue-700 font-medium">
+                      Topa Tudo • Recebimento na hora
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPixQrModal(true)}
+                  className="text-xs font-bold text-blue-700 hover:text-blue-900 bg-white/90 hover:bg-white border border-blue-300/80 px-2.5 py-1 rounded-lg active:scale-95 transition-all flex items-center gap-1 min-h-[36px]"
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>Ampliar QR Code</span>
+                </button>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-white/90 p-3 rounded-xl border border-blue-100">
+                {/* Thumbnail QR Code */}
+                <div
+                  onClick={() => setShowPixQrModal(true)}
+                  className="w-20 h-20 shrink-0 bg-white p-1 rounded-lg border border-slate-200 shadow-xs cursor-pointer hover:opacity-90 transition-opacity flex items-center justify-center self-center sm:self-auto"
+                  title="Toque para ampliar QR Code"
+                  dangerouslySetInnerHTML={{
+                    __html: getPixQrCodeSvgSync(
+                      generatePixPayload({
+                        amount: Number(order.total_price || 0),
+                        txid: `OS${String(order.code).padStart(5, '0')}`,
+                      }),
+                      1
+                    ),
+                  }}
+                />
+
+                {/* Pix Actions and Keys */}
+                <div className="flex-1 space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1 text-xs">
+                    <span className="text-slate-600 font-semibold">Chave CNPJ:</span>
+                    <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded text-[11px]">
+                      {PIX_CNPJ_FORMATTED}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleCopyPixKey}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-blue-300 bg-blue-100/60 hover:bg-blue-100 text-blue-900 font-bold text-xs active:scale-95 transition-all min-h-[40px]"
+                    >
+                      {copiedPixKey ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Chave Copiada!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copiar Chave CNPJ</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCopyPixCode}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs active:scale-95 transition-all min-h-[40px]"
+                    >
+                      {copiedPixCode ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-white" />
+                          <span>Código Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Pix Copia e Cola</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Customer Digital Signature Section */}
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <PenTool className="w-4 h-4 text-industrial-800" />
+                  Assinatura do Cliente
+                </span>
+                {order.signature_url && !showSignaturePad && (
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Assinado
+                  </span>
+                )}
+              </div>
+
+              {showSignaturePad ? (
+                <SignaturePad
+                  onSave={handleSaveSignature}
+                  onCancel={() => setShowSignaturePad(false)}
+                />
+              ) : order.signature_url ? (
+                <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-32 h-16 bg-white rounded-lg border border-slate-300 p-1 flex items-center justify-center overflow-hidden shadow-2xs">
+                      <img
+                        src={order.signature_url}
+                        alt="Assinatura Digital do Cliente"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block">
+                        {order.client?.name || 'Cliente'}
+                      </span>
+                      <span className="text-[11px] text-slate-500 block">
+                        Assinatura digital registrada nesta OS
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowSignaturePad(true)}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-semibold text-xs active:scale-95 transition-all min-h-[38px]"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Refazer Assinatura</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center text-center gap-2.5">
+                  <p className="text-xs text-slate-500 font-medium">
+                    Ainda não foi coletada a assinatura do cliente para esta OS.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowSignaturePad(true)}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-industrial-800 hover:bg-industrial-900 text-white font-bold text-xs sm:text-sm shadow-md active:scale-95 transition-all min-h-[44px]"
+                  >
+                    <PenTool className="w-4 h-4 text-amberAlert-500" />
+                    <span>Coletar Assinatura do Cliente</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Photo Gallery with Direct Camera / Upload Support */}
             <div className="pt-2 border-t border-slate-200 space-y-4">
               <OrderPhotoUpload
@@ -566,6 +794,80 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                 className="w-full py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
               >
                 Fechar sem enviar agora
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Exibição Ampliada do QR Code PIX */}
+      {showPixQrModal && order && (
+        <div className="fixed inset-0 z-[65] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl text-center space-y-4 animate-in zoom-in-95 duration-200 border border-slate-100">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-wider text-blue-900 flex items-center gap-1.5">
+                <QrCode className="w-4 h-4 text-blue-600" />
+                Pagar com PIX
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowPixQrModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 active:scale-95"
+                aria-label="Fechar modal PIX"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center shadow-inner mx-auto max-w-[260px]">
+              <div
+                className="w-full aspect-square"
+                dangerouslySetInnerHTML={{
+                  __html: getPixQrCodeSvgSync(
+                    generatePixPayload({
+                      amount: Number(order.total_price || 0),
+                      txid: `OS${String(order.code).padStart(5, '0')}`,
+                    }),
+                    1
+                  ),
+                }}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <div className="text-2xl font-black text-slate-900">
+                R$ {Number(order.total_price).toFixed(2)}
+              </div>
+              <p className="text-xs text-slate-500">
+                Aponte a câmera do aplicativo do seu banco para ler o QR Code
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <button
+                type="button"
+                onClick={handleCopyPixCode}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs shadow-md transition-all min-h-[44px]"
+              >
+                {copiedPixCode ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>Código Pix Copiado!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    <span>Copiar Pix Copia e Cola</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowPixQrModal(false)}
+                className="w-full py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+              >
+                Voltar para OS
               </button>
             </div>
           </div>

@@ -153,7 +153,7 @@ export const ClientList: React.FC = () => {
     const clean = clientPhone.replace(/\D/g, '');
     const num = clean.length <= 11 ? `55${clean}` : clean;
     const msg = encodeURIComponent(
-      `Olá ${clientName}, tudo bem? Aqui é da Topa Tudo Manutenção & Serviços!`
+      `Olá ${clientName}, tudo bem? Aqui é da equipe Topa Tudo - Manutenção & Serviços! Como podemos te ajudar hoje? 🏠🔧✨`
     );
     window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
   };

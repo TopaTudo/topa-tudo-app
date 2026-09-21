@@ -4,6 +4,7 @@ import { useAuth } from '@/core/context/AuthContext';
 import { useToast } from '@/core/context/ToastContext';
 import { getLocalDateString } from '@/core/utils/date';
 import type { ScheduleItem, Client, Profile } from '@/core/types/database';
+import { generateOnTheWayMessage } from '@/core/utils/whatsappReceipt';
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -146,15 +147,22 @@ export const AgendaView: React.FC = () => {
   // Filter items for selected date vs all
   const filteredSchedule = scheduleList.filter((item) => item.date === selectedDate);
 
-  const openWhatsApp = (phone?: string | null, clientName?: string) => {
+  const openWhatsApp = (
+    phone?: string | null,
+    clientName?: string | null,
+    techName?: string | null,
+    description?: string | null
+  ) => {
     if (!phone) {
       toastError('Sem telefone', 'Cliente não possui telefone cadastrado.');
       return;
     }
     const clean = phone.replace(/\D/g, '');
     const num = clean.length <= 11 ? `55${clean}` : clean;
+    const client = clientName || 'Cliente';
+    const tech = techName || currentProfile?.name || 'técnico';
     const msg = encodeURIComponent(
-      `Olá ${clientName || 'Cliente'}, confirmando nosso atendimento técnico agendado da Topa Tudo!`
+      generateOnTheWayMessage(client, tech, null, description)
     );
     window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
   };
@@ -295,9 +303,9 @@ export const AgendaView: React.FC = () => {
               <div className="flex items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                 <button
                   type="button"
-                  onClick={() => openWhatsApp(item.client?.phone, item.client?.name)}
+                  onClick={() => openWhatsApp(item.client?.phone, item.client?.name, item.tech?.name, item.description)}
                   className="flex-1 sm:flex-initial p-2.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-95 flex items-center justify-center gap-1.5 text-xs font-bold transition-all"
-                  title="WhatsApp"
+                  title="Avisar a caminho no WhatsApp"
                 >
                   <MessageCircle className="w-4 h-4" />
                   <span className="sm:hidden">WhatsApp</span>

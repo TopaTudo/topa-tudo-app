@@ -2,6 +2,8 @@ import type { Order, OrderItem } from '@/core/types/database';
 import { formatLocalDateTime } from '@/core/utils/date';
 import { formatBRL } from '@/core/utils/currency';
 import { formatPaymentMethodLabel, calculateWarrantyEndDate } from '@/core/utils/whatsappReceipt';
+import { getLogoSvgRaw } from '@/core/ui/Logo';
+import { PIX_CNPJ_FORMATTED, generatePixPayload, getPixQrCodeSvgSync } from '@/core/utils/pix';
 
 function escapeHtml(str?: string | null): string {
   if (!str) return '';
@@ -33,6 +35,13 @@ export function generateOrderPrintHTML(order: Order, items: OrderItem[] = []): s
   const warrantyEndDate = calculateWarrantyEndDate(order.completed_at || order.created_at, warrantyDays);
   const paymentMethodStr = formatPaymentMethodLabel(order.payment_method);
   const totalPriceFormatted = formatBRL(order.total_price);
+
+  // Geração do Payload e QR Code PIX Oficial
+  const pixCode = generatePixPayload({
+    amount: Number(order.total_price || 0),
+    txid: `OS${String(order.code).padStart(5, '0')}`,
+  });
+  const pixQrCodeSvg = getPixQrCodeSvgSync(pixCode, 1);
 
   const statusMap: Record<string, { label: string; color: string; bg: string }> = {
     orcamento: { label: 'Orçamento', color: '#92400e', bg: '#fef3c7' },
@@ -175,30 +184,25 @@ export function generateOrderPrintHTML(order: Order, items: OrderItem[] = []): s
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      padding-bottom: 14px;
+      padding-bottom: 12px;
       border-bottom: 2px solid #0f172a;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
 
-    .company-info h1 {
-      font-size: 20px;
-      font-weight: 900;
-      color: #0f172a;
-      letter-spacing: -0.5px;
-      text-transform: uppercase;
+    .company-logo-wrap {
+      width: 260px;
+      max-width: 100%;
+      margin-bottom: 4px;
     }
 
-    .company-info .subtitle {
-      font-size: 11px;
-      font-weight: 700;
-      color: #2563eb;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-top: 1px;
+    .company-logo-wrap svg {
+      width: 100%;
+      height: auto;
+      display: block;
     }
 
     .company-info .cnpj-meta {
-      font-size: 11px;
+      font-size: 10.5px;
       color: #475569;
       margin-top: 4px;
       line-height: 1.35;
@@ -466,18 +470,110 @@ export function generateOrderPrintHTML(order: Order, items: OrderItem[] = []): s
       line-height: 1.4;
     }
 
+    /* Bloco de Pagamento PIX Instantâneo */
+    .pix-payment-box {
+      margin-top: 10px;
+      margin-bottom: 12px;
+      background: #f8fafc;
+      border: 1.5px dashed #0284c7;
+      border-radius: 8px;
+      padding: 9px 12px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      page-break-inside: avoid;
+    }
+
+    .pix-qr-wrap {
+      width: 90px;
+      height: 90px;
+      min-width: 90px;
+      background: #ffffff;
+      padding: 3px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pix-qr-wrap svg {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+
+    .pix-details {
+      flex: 1;
+      font-size: 11px;
+    }
+
+    .pix-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: #0369a1;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+
+    .pix-sub {
+      font-size: 9.5px;
+      color: #64748b;
+      margin-bottom: 4px;
+    }
+
+    .pix-field {
+      font-size: 10.5px;
+      color: #334155;
+      margin-bottom: 2px;
+    }
+
+    .pix-copy-paste {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 8px;
+      color: #334155;
+      background: #ffffff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #e2e8f0;
+      word-break: break-all;
+      max-height: 22px;
+      overflow: hidden;
+      margin-top: 2px;
+    }
+
     /* Assinaturas */
     .signatures-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 30px;
-      margin-top: 28px;
+      margin-top: 18px;
       margin-bottom: 12px;
       page-break-inside: avoid;
     }
 
     .signature-block {
       text-align: center;
+    }
+
+    .sig-image-container {
+      height: 48px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      margin-bottom: 4px;
+    }
+
+    .sig-img {
+      max-height: 46px;
+      max-width: 160px;
+      object-fit: contain;
+      display: block;
+    }
+
+    .sig-placeholder {
+      height: 48px;
     }
 
     .signature-line {
@@ -535,12 +631,12 @@ export function generateOrderPrintHTML(order: Order, items: OrderItem[] = []): s
     <!-- Cabeçalho -->
     <header class="header">
       <div class="company-info">
-        <h1>Topa Tudo</h1>
-        <div class="subtitle">Manutenção &amp; Serviços Especializados</div>
+        <div class="company-logo-wrap">
+          ${getLogoSvgRaw('light')}
+        </div>
         <div class="cnpj-meta">
-          <strong>CNPJ:</strong> 17.411.775/0001-52<br />
-          <strong>Atendimento &amp; WhatsApp:</strong> Suporte Operacional Topa Tudo<br />
-          Ordem de Serviço Técnica &amp; Comprovante Autorizado
+          <strong>CNPJ:</strong> 17.411.775/0001-52 • <strong>Razão Social:</strong> TOPA TUDO MANUTENCAO<br />
+          <strong>Atendimento Técnico &amp; Comprovante Autorizado</strong>
         </div>
       </div>
 
@@ -625,6 +721,22 @@ export function generateOrderPrintHTML(order: Order, items: OrderItem[] = []): s
       </div>
     </div>
 
+    <!-- Bloco de Pagamento PIX Instantâneo com QR Code -->
+    <div class="pix-payment-box">
+      <div class="pix-qr-wrap">
+        ${pixQrCodeSvg}
+      </div>
+      <div class="pix-details">
+        <div class="pix-title">
+          <span>⚡</span> PAGAMENTO INSTANTÂNEO VIA PIX
+        </div>
+        <div class="pix-sub">Aponte a câmera do seu celular ou aplicativo bancário para pagar agora</div>
+        <div class="pix-field"><strong>Chave CNPJ:</strong> <span>17.411.775/0001-52</span> • <strong>Beneficiário:</strong> <span>TOPA TUDO MANUTENCAO</span></div>
+        <div class="pix-field"><strong>Valor da OS:</strong> <span class="pix-amount">${totalPriceFormatted}</span></div>
+        <div class="pix-copy-paste">${escapeHtml(pixCode)}</div>
+      </div>
+    </div>
+
     <!-- Galeria de Fotos Antes e Depois (se houver) -->
     ${
       hasPhotos
@@ -669,12 +781,24 @@ export function generateOrderPrintHTML(order: Order, items: OrderItem[] = []): s
     <!-- Assinaturas -->
     <div class="signatures-row">
       <div class="signature-block">
+        ${
+          order.signature_url
+            ? `<div class="sig-image-container"><img src="${escapeHtml(
+                order.signature_url
+              )}" alt="Assinatura Digital do Cliente" class="sig-img" /></div>`
+            : `<div class="sig-placeholder"></div>`
+        }
         <div class="signature-line"></div>
         <div class="sig-name">${clientName}</div>
-        <div class="sig-role">Assinatura do Cliente / Responsável</div>
+        <div class="sig-role">${
+          order.signature_url
+            ? 'Assinatura Digital Coletada'
+            : 'Assinatura do Cliente / Responsável'
+        }</div>
       </div>
 
       <div class="signature-block">
+        <div class="sig-placeholder"></div>
         <div class="signature-line"></div>
         <div class="sig-name">${techName}</div>
         <div class="sig-role">Topa Tudo - Manutenção &amp; Serviços</div>
