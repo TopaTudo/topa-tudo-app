@@ -37,7 +37,10 @@ import {
   Copy,
   Check,
   RotateCcw,
+  Receipt,
+  Sparkles,
 } from 'lucide-react';
+import { ThermalReceiptModal } from './ThermalReceiptModal';
 
 interface OrderDetailModalProps {
   orderId: string | null;
@@ -66,6 +69,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   const [copiedPixKey, setCopiedPixKey] = useState(false);
   const [copiedPixCode, setCopiedPixCode] = useState(false);
   const [showPixQrModal, setShowPixQrModal] = useState(false);
+  const [showThermalReceiptModal, setShowThermalReceiptModal] = useState(false);
 
   useEffect(() => {
     if (!orderId || !isOpen) return;
@@ -680,7 +684,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
         {/* Modal Footer: Action Buttons */}
         {order && (
           <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 shrink-0">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={onClose}
@@ -697,6 +701,16 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
               >
                 <Printer className="w-4 h-4 text-industrial-800" />
                 <span>Imprimir / PDF</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowThermalReceiptModal(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-950 font-bold text-xs sm:text-sm active:scale-95 transition-all shadow-xs"
+                title="Gerar e compartilhar Cupom Térmico (Foto)"
+              >
+                <Receipt className="w-4 h-4 text-amber-700" />
+                <span>Recibo Cupom (Foto)</span>
               </button>
             </div>
 
@@ -718,12 +732,21 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
               <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto justify-end">
                 <button
                   type="button"
-                  onClick={handleSendReceipt}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-700/25 active:scale-95 transition-all"
-                  title="Enviar Recibo ao Cliente no WhatsApp"
+                  onClick={() => setShowThermalReceiptModal(true)}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-700/25 active:scale-95 transition-all"
+                  title="Enviar Foto do Cupom Térmico no WhatsApp"
                 >
-                  <MessageCircle className="w-4 h-4" />
-                  <span>Enviar Recibo WhatsApp</span>
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <span>Cupom Térmico (Foto)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendReceipt}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs active:scale-95 transition-all"
+                  title="Enviar Recibo em Texto no WhatsApp"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Texto</span>
                 </button>
               </div>
             )}
@@ -765,13 +788,25 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
               <button
                 type="button"
                 onClick={() => {
+                  setShowReceiptPrompt(false);
+                  setShowThermalReceiptModal(true);
+                }}
+                className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black text-sm shadow-lg shadow-emerald-600/30 transition-all min-h-[48px]"
+              >
+                <Sparkles className="w-5 h-5 text-amber-300" />
+                <span>Enviar Foto do Recibo (Cupom)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
                   handleSendReceipt();
                   setShowReceiptPrompt(false);
                 }}
-                className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-sm shadow-lg shadow-emerald-600/30 transition-all min-h-[48px]"
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 font-bold text-sm transition-all min-h-[44px]"
               >
-                <MessageCircle className="w-5 h-5" />
-                <span>Enviar Recibo no WhatsApp</span>
+                <MessageCircle className="w-4 h-4 text-emerald-600" />
+                <span>Enviar como Texto Tradicional</span>
               </button>
 
               <button
@@ -779,7 +814,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                 onClick={() => {
                   handlePrint();
                 }}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 font-bold text-sm transition-all min-h-[44px]"
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 active:scale-95 text-slate-700 font-semibold text-xs transition-all min-h-[40px]"
               >
                 <Printer className="w-4 h-4 text-slate-600" />
                 <span>Imprimir / Salvar PDF</span>
@@ -873,6 +908,15 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal de Cupom Térmico (Foto) */}
+      <ThermalReceiptModal
+        isOpen={showThermalReceiptModal}
+        onClose={() => setShowThermalReceiptModal(false)}
+        order={order}
+        items={items}
+        onSendAsText={handleSendReceipt}
+      />
     </div>
   );
 };
