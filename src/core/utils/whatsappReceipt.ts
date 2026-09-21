@@ -43,18 +43,77 @@ export function calculateWarrantyEndDate(startDateIso?: string | null, days: num
 }
 
 /**
- * Sanitiza o número de telefone removendo caracteres não numéricos e garantindo o DDI 55 (Brasil).
+ * Sanitiza e valida o número de telefone brasileiro para envio de WhatsApp.
+ * Aceita números com ou sem pontuação:
+ * - Se tem 10 dígitos (DDD + fixo): 8432111234 -> 558432111234
+ * - Se tem 11 dígitos (DDD + celular): 84999998888 -> 5584999998888
+ * - Se já possui DDI 55 com 12 ou 13 dígitos: 5584999998888 -> 5584999998888
+ * - Se tiver menos de 10 dígitos: inválido (retorna '')
  */
-export function sanitizeWhatsAppPhone(phone?: string | null): string {
+export function sanitizePhone(phone?: string | null): string {
   if (!phone) return '';
   const clean = phone.replace(/\D/g, '');
-  if (!clean) return '';
+  if (!clean || clean.length < 10) return '';
 
-  // Se tem 10 ou 11 dígitos (DDD + número), adiciona DDI 55
-  if (clean.length <= 11) {
+  // Se já possui 12 ou 13 dígitos e começa com 55 (ex: 55 + DDD + número)
+  if (clean.startsWith('55') && (clean.length === 12 || clean.length === 13)) {
+    return clean;
+  }
+
+  // Se tem 10 ou 11 dígitos (DDD + número brasileiro sem DDI)
+  if (clean.length === 10 || clean.length === 11) {
     return `55${clean}`;
   }
+
+  // Se tiver 12 ou 13 dígitos sem começar com 55
+  if (clean.length >= 10 && clean.length <= 13) {
+    return clean.startsWith('55') ? clean : `55${clean}`;
+  }
+
   return clean;
+}
+
+/**
+ * Mantém total compatibilidade com códigos que utilizam sanitizeWhatsAppPhone
+ */
+export const sanitizeWhatsAppPhone = sanitizePhone;
+
+/**
+ * Valida se uma string contém um número de telefone com DDD válido (mínimo 10 dígitos)
+ */
+export function isValidPhone(phone?: string | null): boolean {
+  if (!phone) return false;
+  const clean = phone.replace(/\D/g, '');
+  // Se tiver DDI 55, verifica tamanho total (12 a 13)
+  if (clean.startsWith('55') && clean.length >= 12) {
+    return clean.length === 12 || clean.length === 13;
+  }
+  return clean.length === 10 || clean.length === 11;
+}
+
+/**
+ * Aplica máscara de telefone brasileiro dinamicamente enquanto o usuário digita:
+ * (99) 9999-9999 ou (99) 99999-9999
+ */
+export function formatBrazilianPhone(value?: string | null): string {
+  if (!value) return '';
+  let digits = value.replace(/\D/g, '');
+  // Se começar com 55 e tiver 12 ou 13 dígitos, remove o 55 para exibição no campo nacional
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+    digits = digits.slice(2);
+  }
+  const clean = digits.slice(0, 11);
+  if (!clean) return '';
+  if (clean.length <= 2) {
+    return `(${clean}`;
+  }
+  if (clean.length <= 6) {
+    return `(${clean.slice(0, 2)}) ${clean.slice(2)}`;
+  }
+  if (clean.length <= 10) {
+    return `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
+  }
+  return `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7, 11)}`;
 }
 
 /**

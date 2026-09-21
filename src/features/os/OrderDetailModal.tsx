@@ -4,7 +4,13 @@ import { useAuth } from '@/core/context/AuthContext';
 import { useToast } from '@/core/context/ToastContext';
 import type { Order, OrderItem } from '@/core/types/database';
 import { printOrderService } from '@/core/utils/printOS';
-import { generateReceiptMessage, generateOnTheWayMessage, openWhatsAppReceipt } from '@/core/utils/whatsappReceipt';
+import {
+  generateReceiptMessage,
+  generateOnTheWayMessage,
+  openWhatsAppReceipt,
+  formatBrazilianPhone,
+  isValidPhone,
+} from '@/core/utils/whatsappReceipt';
 import { SignaturePad } from '@/core/ui/SignaturePad';
 import {
   PIX_CNPJ_FORMATTED,
@@ -39,6 +45,7 @@ import {
   RotateCcw,
   Receipt,
   Sparkles,
+  Edit2,
 } from 'lucide-react';
 import { ThermalReceiptModal } from './ThermalReceiptModal';
 
@@ -70,6 +77,11 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   const [copiedPixCode, setCopiedPixCode] = useState(false);
   const [showPixQrModal, setShowPixQrModal] = useState(false);
   const [showThermalReceiptModal, setShowThermalReceiptModal] = useState(false);
+
+  // Envio de Recibo para Outro Número de WhatsApp
+  const [showAlternativePhoneModal, setShowAlternativePhoneModal] = useState(false);
+  const [alternativePhone, setAlternativePhone] = useState('');
+  const [thermalInitialPhone, setThermalInitialPhone] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (!orderId || !isOpen) return;
@@ -175,20 +187,22 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
     }
   };
 
-  // Enviar Recibo Formatado ao Cliente via WhatsApp
-  const handleSendReceipt = () => {
+  // Enviar Recibo Formatado ao Cliente via WhatsApp (com suporte a número alternativo)
+  const handleSendReceipt = (targetPhone?: string) => {
     if (!order) return;
-    if (!order.client?.phone) {
-      toastError('Cliente sem telefone', 'Adicione um número de WhatsApp ao cadastro do cliente para enviar o recibo.');
+    const phoneToUse = targetPhone || order.client?.phone;
+    if (!phoneToUse) {
+      setAlternativePhone('');
+      setShowAlternativePhoneModal(true);
       return;
     }
 
     const receiptText = generateReceiptMessage(order, order.client, order.tech, items);
-    const sent = openWhatsAppReceipt(order.client.phone, receiptText);
+    const sent = openWhatsAppReceipt(phoneToUse, receiptText);
     if (sent) {
       success('Recibo pronto no WhatsApp!', 'Conversa aberta com o recibo formatado.');
     } else {
-      toastError('Telefone inválido', 'Não foi possível formatar o número do cliente para WhatsApp.');
+      toastError('Telefone inválido', 'Não foi possível formatar o número informado para WhatsApp.');
     }
   };
 
@@ -732,7 +746,10 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
               <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto justify-end">
                 <button
                   type="button"
-                  onClick={() => setShowThermalReceiptModal(true)}
+                  onClick={() => {
+                    setThermalInitialPhone(undefined);
+                    setShowThermalReceiptModal(true);
+                  }}
                   className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-700/25 active:scale-95 transition-all"
                   title="Enviar Foto do Cupom Térmico no WhatsApp"
                 >
@@ -741,12 +758,24 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={handleSendReceipt}
+                  onClick={() => handleSendReceipt()}
                   className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs active:scale-95 transition-all"
                   title="Enviar Recibo em Texto no WhatsApp"
                 >
                   <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
                   <span>Texto</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAlternativePhone('');
+                    setShowAlternativePhoneModal(true);
+                  }}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs active:scale-95 transition-all border border-slate-300 shadow-xs"
+                  title="Enviar comprovante para outro número de WhatsApp (parente, proprietário, síndico)"
+                >
+                  <Share2 className="w-3.5 h-3.5 text-slate-600" />
+                  <span className="hidden sm:inline">Outro Número</span>
                 </button>
               </div>
             )}
@@ -771,16 +800,34 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
               </p>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-left space-y-1">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
-                Cliente &amp; Contato
+            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-left space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+                  Cliente &amp; Contato
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowReceiptPrompt(false);
+                    setAlternativePhone('');
+                    setShowAlternativePhoneModal(true);
+                  }}
+                  className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline flex items-center gap-1"
+                >
+                  <Share2 className="w-3 h-3" />
+                  <span>Enviar para outro número</span>
+                </button>
               </div>
               <div className="text-sm font-bold text-slate-900">
                 {order.client?.name || 'Cliente Avulso'}
               </div>
               <div className="text-xs text-slate-600 flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{order.client?.phone || 'Sem telefone informado'}</span>
+                <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>
+                  {order.client?.phone
+                    ? formatBrazilianPhone(order.client.phone)
+                    : 'Sem telefone cadastrado (será solicitado ao enviar)'}
+                </span>
               </div>
             </div>
 
@@ -789,6 +836,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                 type="button"
                 onClick={() => {
                   setShowReceiptPrompt(false);
+                  setThermalInitialPhone(undefined);
                   setShowThermalReceiptModal(true);
                 }}
                 className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black text-sm shadow-lg shadow-emerald-600/30 transition-all min-h-[48px]"
@@ -800,6 +848,12 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
               <button
                 type="button"
                 onClick={() => {
+                  if (!order.client?.phone) {
+                    setShowReceiptPrompt(false);
+                    setAlternativePhone('');
+                    setShowAlternativePhoneModal(true);
+                    return;
+                  }
                   handleSendReceipt();
                   setShowReceiptPrompt(false);
                 }}
@@ -807,6 +861,19 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
               >
                 <MessageCircle className="w-4 h-4 text-emerald-600" />
                 <span>Enviar como Texto Tradicional</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReceiptPrompt(false);
+                  setAlternativePhone('');
+                  setShowAlternativePhoneModal(true);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl bg-emerald-50/90 hover:bg-emerald-100 border border-emerald-200 active:scale-95 text-emerald-800 font-bold text-xs transition-all min-h-[42px]"
+              >
+                <Share2 className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Enviar para Outro Número de WhatsApp</span>
               </button>
 
               <button
@@ -909,13 +976,122 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
         </div>
       )}
 
+      {/* Modal/Diálogo para Envio de Recibo para Outro Número de WhatsApp */}
+      {showAlternativePhoneModal && order && (
+        <div className="fixed inset-0 z-[65] bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-md p-5 sm:p-6 shadow-2xl text-left space-y-4 animate-in zoom-in-95 duration-200 border border-slate-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                  <MessageCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Enviar Recibo via WhatsApp
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    OS #{order.code} • {order.client?.name || 'Cliente'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAlternativePhoneModal(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-bold uppercase text-slate-700">
+                Informe o número de WhatsApp para envio do recibo:
+              </label>
+              <div className="relative flex items-center">
+                <input
+                  type="tel"
+                  autoFocus
+                  placeholder="(DDD) 99999-9999"
+                  value={alternativePhone}
+                  onChange={(e) => setAlternativePhone(formatBrazilianPhone(e.target.value))}
+                  className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-300 text-slate-900 text-base font-mono focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-hidden transition-all shadow-xs"
+                />
+                <div className="absolute left-3 text-emerald-600 pointer-events-none">
+                  <MessageCircle className="w-5 h-5" />
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-tight">
+                💡 Envie para o cônjuge, proprietário do imóvel, síndico ou setor financeiro.
+              </p>
+              {order.client?.phone && (
+                <button
+                  type="button"
+                  onClick={() => setAlternativePhone(formatBrazilianPhone(order.client?.phone || ''))}
+                  className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 underline flex items-center gap-1 pt-0.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Restaurar número do cliente: {formatBrazilianPhone(order.client.phone)}</span>
+                </button>
+              )}
+            </div>
+
+            <div className="pt-2 space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isValidPhone(alternativePhone)) {
+                    toastError('Telefone inválido', 'Digite o número com DDD (ex: (84) 99999-9999)');
+                    return;
+                  }
+                  setShowAlternativePhoneModal(false);
+                  setThermalInitialPhone(alternativePhone);
+                  setShowThermalReceiptModal(true);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-sm shadow-md shadow-emerald-700/25 transition-all min-h-[48px]"
+              >
+                <Sparkles className="w-4 h-4 text-amber-300" />
+                <span>Enviar Foto do Recibo (Cupom)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isValidPhone(alternativePhone)) {
+                    toastError('Telefone inválido', 'Digite o número com DDD (ex: (84) 99999-9999)');
+                    return;
+                  }
+                  setShowAlternativePhoneModal(false);
+                  handleSendReceipt(alternativePhone);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 font-bold text-sm transition-all min-h-[44px]"
+              >
+                <MessageCircle className="w-4 h-4 text-emerald-600" />
+                <span>Enviar como Texto Tradicional</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowAlternativePhoneModal(false)}
+                className="w-full py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal de Cupom Térmico (Foto) */}
       <ThermalReceiptModal
         isOpen={showThermalReceiptModal}
-        onClose={() => setShowThermalReceiptModal(false)}
+        onClose={() => {
+          setShowThermalReceiptModal(false);
+          setThermalInitialPhone(undefined);
+        }}
         order={order}
         items={items}
-        onSendAsText={handleSendReceipt}
+        initialPhone={thermalInitialPhone}
+        onSendAsText={(custom) => handleSendReceipt(custom)}
       />
     </div>
   );
