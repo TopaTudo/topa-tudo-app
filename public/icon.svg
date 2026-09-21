@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E3A8A" />
+      <stop offset="100%" stop-color="#0F172A" />
+    </linearGradient>
+    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+  </defs>
+  <!-- Background Rounded Rect -->
+  <rect width="512" height="512" rx="110" fill="url(#blueGrad)" />
+  <!-- Accent Border Ring -->
+  <rect x="16" y="16" width="480" height="480" rx="96" fill="none" stroke="#3B82F6" stroke-width="8" opacity="0.3" />
+  <!-- Industrial Emblem: Hexagon Wrench & Lightning -->
+  <path d="M256 90 L390 167 L390 322 L256 399 L122 322 L122 167 Z" fill="#1E293B" stroke="#60A5FA" stroke-width="12" stroke-linejoin="round" />
+  <!-- Gear/Wrench center -->
+  <circle cx="256" cy="245" r="70" fill="url(#blueGrad)" stroke="#38BDF8" stroke-width="8" />
+  <circle cx="256" cy="245" r="35" fill="#0F172A" />
+  <!-- Lightning Bolt for Topa Tudo Speed & Power -->
+  <path d="M265 140 L215 250 L260 250 L245 350 L310 230 L265 230 Z" fill="url(#amberGrad)" stroke="#B45309" stroke-width="4" stroke-linejoin="round" />
+  <!-- TT Text badge at bottom -->
+  <rect x="156" y="415" width="200" height="42" rx="21" fill="#F8FAFC" />
+  <text x="256" y="445" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="900" font-size="24" fill="#1E3A8A" text-anchor="middle" letter-spacing="3">TOPA TUDO</text>
+</svg>
