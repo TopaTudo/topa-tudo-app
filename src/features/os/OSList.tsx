@@ -3,6 +3,7 @@ import { supabase } from '@/core/supabase';
 import { useAuth } from '@/core/context/AuthContext';
 import { useToast } from '@/core/context/ToastContext';
 import type { Order } from '@/core/types/database';
+import { printOrderService } from '@/core/utils/printOS';
 import { OrderFormModal } from './OrderFormModal';
 import { OrderDetailModal } from './OrderDetailModal';
 import {
@@ -20,6 +21,7 @@ import {
   User,
   RefreshCw,
   SlidersHorizontal,
+  Printer,
 } from 'lucide-react';
 
 export const OSList: React.FC = () => {
@@ -112,6 +114,20 @@ export const OSList: React.FC = () => {
       label: 'Cancelado',
       badgeClass: 'bg-rose-100 text-rose-800 border-rose-300',
     },
+  };
+
+  // Quick Print from List
+  const handleQuickPrint = async (e: React.MouseEvent, order: Order) => {
+    e.stopPropagation();
+    try {
+      const { data: itemsData } = await supabase
+        .from('order_items')
+        .select('*')
+        .eq('order_id', order.id);
+      printOrderService(order, (itemsData as any) || []);
+    } catch {
+      printOrderService(order, []);
+    }
   };
 
   return (
@@ -263,9 +279,20 @@ export const OSList: React.FC = () => {
                     </span>
                   </div>
 
-                  <span className="text-base font-black text-emerald-700">
-                    R$ {Number(order.total_price).toFixed(2)}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={(e) => handleQuickPrint(e, order)}
+                      aria-label="Imprimir OS / PDF"
+                      title="Imprimir / Salvar PDF"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-industrial-900 hover:bg-slate-100 active:scale-95 transition-all"
+                    >
+                      <Printer className="w-4 h-4" />
+                    </button>
+                    <span className="text-base font-black text-emerald-700">
+                      R$ {Number(order.total_price).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Client & Description */}

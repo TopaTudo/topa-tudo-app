@@ -3,6 +3,8 @@ import { supabase, completeWorkOrderRPC } from '@/core/supabase';
 import { useAuth } from '@/core/context/AuthContext';
 import { useToast } from '@/core/context/ToastContext';
 import type { Order, OrderItem } from '@/core/types/database';
+import { printOrderService } from '@/core/utils/printOS';
+import { generateReceiptMessage, openWhatsAppReceipt } from '@/core/utils/whatsappReceipt';
 import { OrderPhotoUpload } from './OrderPhotoUpload';
 import {
   X,
@@ -22,6 +24,7 @@ import {
   Navigation,
   Share2,
   Loader2,
+  Printer,
 } from 'lucide-react';
 
 interface OrderDetailModalProps {
@@ -46,6 +49,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
+  const [showReceiptPrompt, setShowReceiptPrompt] = useState(false);
 
   useEffect(() => {
     if (!orderId || !isOpen) return;
@@ -131,8 +135,17 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
           `OS #${order.code} Concluída com Sucesso!`,
           `Baixa em ${res.items_deducted} materiais e receita registrada.`
         );
+        setOrder((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: 'concluido',
+                completed_at: new Date().toISOString(),
+              }
+            : null
+        );
         onRefresh();
-        onClose();
+        setShowReceiptPrompt(true);
       }
     } catch (err: any) {
       console.error('Falha ao concluir OS:', err);
@@ -140,6 +153,29 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
     } finally {
       setCompleting(false);
     }
+  };
+
+  // Enviar Recibo Formatado ao Cliente via WhatsApp
+  const handleSendReceipt = () => {
+    if (!order) return;
+    if (!order.client?.phone) {
+      toastError('Cliente sem telefone', 'Adicione um número de WhatsApp ao cadastro do cliente para enviar o recibo.');
+      return;
+    }
+
+    const receiptText = generateReceiptMessage(order, order.client, order.tech, items);
+    const sent = openWhatsAppReceipt(order.client.phone, receiptText);
+    if (sent) {
+      success('Recibo pronto no WhatsApp!', 'Conversa aberta com o recibo formatado.');
+    } else {
+      toastError('Telefone inválido', 'Não foi possível formatar o número do cliente para WhatsApp.');
+    }
+  };
+
+  // Imprimir OS / Salvar como PDF profissional A4
+  const handlePrint = () => {
+    if (!order) return;
+    printOrderService(order, items);
   };
 
   // WhatsApp Link Helper
@@ -200,18 +236,29 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
 
           <div className="flex items-center gap-2">
             {order && (
-              <button
-                type="button"
-                onClick={() => {
-                  onEdit(order);
-                  onClose();
-                }}
-                aria-label="Editar OS"
-                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-industrial-800 text-slate-200 hover:text-white active:scale-95 transition-all"
-                title="Editar OS"
-              >
-                <Edit3 className="w-5 h-5" />
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handlePrint}
+                  aria-label="Imprimir / Salvar PDF"
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-industrial-800 text-slate-200 hover:text-white active:scale-95 transition-all"
+                  title="Imprimir ou Salvar PDF (A4)"
+                >
+                  <Printer className="w-5 h-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onEdit(order);
+                    onClose();
+                  }}
+                  aria-label="Editar OS"
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-industrial-800 text-slate-200 hover:text-white active:scale-95 transition-all"
+                  title="Editar OS"
+                >
+                  <Edit3 className="w-5 h-5" />
+                </button>
+              </>
             )}
             <button
               type="button"
@@ -233,23 +280,32 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
         ) : (
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
             {/* Quick 1-Touch Action Buttons for Field Technicians */}
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <button
                 type="button"
                 onClick={openWhatsApp}
-                className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md active:scale-95 transition-all min-h-[50px]"
+                className="flex items-center justify-center gap-2 py-3 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md active:scale-95 transition-all min-h-[48px]"
               >
-                <MessageCircle className="w-5 h-5" />
+                <MessageCircle className="w-4 h-4 shrink-0" />
                 <span>WhatsApp Cliente</span>
               </button>
 
               <button
                 type="button"
                 onClick={openMaps}
-                className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md active:scale-95 transition-all min-h-[50px]"
+                className="flex items-center justify-center gap-2 py-3 px-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-md active:scale-95 transition-all min-h-[48px]"
               >
-                <Navigation className="w-5 h-5" />
-                <span>Navegar GPS (Maps)</span>
+                <Navigation className="w-4 h-4 shrink-0" />
+                <span>Navegar GPS</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="flex items-center justify-center gap-2 py-3 px-3 rounded-2xl bg-industrial-800 hover:bg-industrial-900 text-white font-bold text-xs sm:text-sm shadow-md active:scale-95 transition-all min-h-[48px]"
+              >
+                <Printer className="w-4 h-4 shrink-0" />
+                <span>Imprimir / PDF</span>
               </button>
             </div>
 
@@ -393,40 +449,128 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
           </div>
         )}
 
-        {/* Modal Footer: Action Complete Button */}
+        {/* Modal Footer: Action Buttons */}
         {order && (
-          <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3 shrink-0">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-100 active:scale-95"
-            >
-              Fechar
-            </button>
+          <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 shrink-0">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-100 active:scale-95 transition-all"
+              >
+                Fechar
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs sm:text-sm active:scale-95 transition-all shadow-xs"
+                title="Imprimir ou Salvar PDF"
+              >
+                <Printer className="w-4 h-4 text-industrial-800" />
+                <span>Imprimir / PDF</span>
+              </button>
+            </div>
 
             {order.status !== 'concluido' ? (
               <button
                 type="button"
                 onClick={handleCompleteOrder}
                 disabled={completing}
-                className="flex-1 max-w-xs min-h-[50px] flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-greenSuccess-600 hover:bg-greenSuccess-700 active:scale-95 text-white font-bold text-sm shadow-lg shadow-emerald-700/30 transition-all disabled:opacity-50"
+                className="flex-1 sm:flex-none sm:min-w-[220px] min-h-[48px] flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-greenSuccess-600 hover:bg-greenSuccess-700 active:scale-95 text-white font-bold text-sm shadow-lg shadow-emerald-700/30 transition-all disabled:opacity-50"
               >
                 {completing ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
                   <CheckCircle2 className="w-5 h-5" />
                 )}
-                <span>{completing ? 'Concluindo...' : 'Concluir Ordem de Serviço'}</span>
+                <span>{completing ? 'Concluindo...' : 'Concluir OS'}</span>
               </button>
             ) : (
-              <div className="flex items-center gap-2 text-greenSuccess-600 font-bold text-sm bg-green-50 px-4 py-2 rounded-xl border border-green-200">
-                <CheckCircle2 className="w-5 h-5" />
-                <span>OS Finalizada em {order.completed_at ? new Date(order.completed_at).toLocaleDateString('pt-BR') : ''}</span>
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={handleSendReceipt}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-700/25 active:scale-95 transition-all"
+                  title="Enviar Recibo ao Cliente no WhatsApp"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Enviar Recibo WhatsApp</span>
+                </button>
               </div>
             )}
           </div>
         )}
       </div>
+
+      {/* Modal de Envio de Recibo WhatsApp Pós-Conclusão */}
+      {showReceiptPrompt && order && (
+        <div className="fixed inset-0 z-[60] bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-md p-5 sm:p-6 shadow-2xl text-center space-y-4 animate-in zoom-in-95 duration-200 border border-slate-100">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
+              <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10" />
+            </div>
+
+            <div>
+              <h3 className="text-xl font-black text-slate-900">
+                OS #{order.code} Concluída com Sucesso!
+              </h3>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                Deseja enviar o comprovante / recibo para o cliente no WhatsApp agora?
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-left space-y-1">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+                Cliente &amp; Contato
+              </div>
+              <div className="text-sm font-bold text-slate-900">
+                {order.client?.name || 'Cliente Avulso'}
+              </div>
+              <div className="text-xs text-slate-600 flex items-center gap-1.5">
+                <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{order.client?.phone || 'Sem telefone informado'}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  handleSendReceipt();
+                  setShowReceiptPrompt(false);
+                }}
+                className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-sm shadow-lg shadow-emerald-600/30 transition-all min-h-[48px]"
+              >
+                <MessageCircle className="w-5 h-5" />
+                <span>Enviar Recibo no WhatsApp</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  handlePrint();
+                }}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 font-bold text-sm transition-all min-h-[44px]"
+              >
+                <Printer className="w-4 h-4 text-slate-600" />
+                <span>Imprimir / Salvar PDF</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReceiptPrompt(false);
+                  onClose();
+                }}
+                className="w-full py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+              >
+                Fechar sem enviar agora
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
