@@ -3,6 +3,7 @@ import type { Order, OrderItem, Client, Profile } from '@/core/types/database';
 import { formatLocalDateTime } from '@/core/utils/date';
 import { formatPaymentMethodLabel, calculateWarrantyEndDate } from '@/core/utils/whatsappReceipt';
 import { PIX_CNPJ_FORMATTED, generatePixPayload } from '@/core/utils/pix';
+import { TOPA_TUDO_EMBLEM_DARK_PATH, TOPA_TUDO_EMBLEM_YELLOW_PATH } from '@/core/ui/Logo';
 
 export interface GeneratedThermalReceipt {
   blob: Blob;
@@ -11,6 +12,12 @@ export interface GeneratedThermalReceipt {
   width: number;
   height: number;
 }
+
+/**
+ * Famílias tipográficas de alta qualidade para o cupom térmico
+ */
+const FONT_SANS = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+const FONT_MONO = "'JetBrains Mono', 'Roboto Mono', 'SF Mono', Consolas, monospace";
 
 /**
  * Tabela de padrões Code 128 (larguras de barras e espaços para cada símbolo 0-106)
@@ -197,113 +204,55 @@ function drawThermalLogo(ctx: CanvasRenderingContext2D, centerX: number, topY: n
   let y = topY;
   ctx.save();
 
-  // 1. Emblema Vetorial (Escudo + Chave Inglesa + Raio)
-  const iconW = 60;
-  const iconH = 68;
-  const iconX = centerX - iconW / 2;
-  const iconY = y;
+  // 1. Emblema Arquitetônico Oficial Topa Tudo (Telhado + Chaminé + Triângulo)
+  const targetW = 96;
+  const scale = targetW / 631.8;
+  const targetH = 323.2 * scale; // ~49px
 
-  // Escudo Hexagonal (Contorno e preenchimento sólido preto com recorte)
-  ctx.strokeStyle = '#0a0a0a';
-  ctx.fillStyle = '#0a0a0a';
-  ctx.lineWidth = 3.5;
-  ctx.lineJoin = 'round';
-
-  ctx.beginPath();
-  ctx.moveTo(centerX, iconY);
-  ctx.lineTo(iconX + iconW, iconY + 15);
-  ctx.lineTo(iconX + iconW, iconY + 45);
-  ctx.lineTo(centerX, iconY + iconH);
-  ctx.lineTo(iconX, iconY + 45);
-  ctx.lineTo(iconX, iconY + 15);
-  ctx.closePath();
-  ctx.stroke();
-
-  // Borda interna de precisão
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(centerX, iconY + 5);
-  ctx.lineTo(iconX + iconW - 5, iconY + 18);
-  ctx.lineTo(iconX + iconW - 5, iconY + 42);
-  ctx.lineTo(centerX, iconY + iconH - 6);
-  ctx.lineTo(iconX + 5, iconY + 42);
-  ctx.lineTo(iconX + 5, iconY + 18);
-  ctx.closePath();
-  ctx.stroke();
-
-  // Chave Inglesa interna (Silhueta escura)
   ctx.save();
-  ctx.translate(centerX, iconY + 34);
-  ctx.rotate((-32 * Math.PI) / 180);
-  ctx.fillStyle = '#0a0a0a';
-  // Haste
-  ctx.fillRect(-4, -18, 8, 38);
-  // Cabeça superior da chave
-  ctx.beginPath();
-  ctx.arc(0, -18, 9, 0, Math.PI * 2);
-  ctx.fill();
-  // Abertura da chave (recorte branco)
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(-3, -28, 6, 12);
-  // Cabeça inferior da chave (anel)
-  ctx.fillStyle = '#0a0a0a';
-  ctx.beginPath();
-  ctx.arc(0, 20, 7, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.arc(0, 20, 3, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.translate(centerX - (631.8 * scale) / 2 - 4.0 * scale, y - 84.5 * scale);
+  ctx.scale(scale, scale);
+
+  if (typeof Path2D !== 'undefined') {
+    const darkPath = new Path2D(TOPA_TUDO_EMBLEM_DARK_PATH);
+    const yellowPath = new Path2D(TOPA_TUDO_EMBLEM_YELLOW_PATH);
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fill(darkPath, 'evenodd');
+    ctx.fill(yellowPath, 'evenodd');
+  }
   ctx.restore();
 
-  // Raio Dinâmico no Centro (Em corte branco com borda preta)
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(centerX + 3, iconY + 12);
-  ctx.lineTo(centerX - 10, iconY + 33);
-  ctx.lineTo(centerX - 1, iconY + 33);
-  ctx.lineTo(centerX - 7, iconY + 54);
-  ctx.lineTo(centerX + 11, iconY + 28);
-  ctx.lineTo(centerX + 1, iconY + 28);
-  ctx.closePath();
-  ctx.fillStyle = '#ffffff';
-  ctx.fill();
-  ctx.strokeStyle = '#0a0a0a';
-  ctx.lineWidth = 2.5;
-  ctx.stroke();
-  ctx.restore();
-
-  y += iconH + 12;
+  y += targetH + 14;
 
   // 2. Tipografia do Nome
   ctx.textAlign = 'center';
   ctx.fillStyle = '#0a0a0a';
 
-  ctx.font = '900 24px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `900 26px ${FONT_SANS}`;
   ctx.fillText('TOPA TUDO', centerX, y);
-  y += 18;
+  y += 20;
 
-  ctx.font = '700 11px "Space Mono", "Courier New", Consolas, monospace';
-  ctx.fillText('MANUTENÇÃO & REFORMAS', centerX, y);
-  y += 14;
-
-  ctx.font = '500 10px "Space Mono", "Courier New", Consolas, monospace';
-  ctx.fillText('CNPJ: 17.411.775/0001-52', centerX, y);
-  y += 14;
-
-  ctx.fillText('TEL / WHATSAPP: (84) 99999-9999', centerX, y);
+  ctx.font = `700 12px ${FONT_SANS}`;
+  ctx.fillText('COMÉRCIO & PRESTAÇÃO DE SERVIÇOS', centerX, y);
   y += 16;
 
+  ctx.font = `600 12px ${FONT_MONO}`;
+  ctx.fillText('CNPJ: 17.411.775/0001-52', centerX, y);
+  y += 16;
+
+  ctx.fillText('TEL / WHATSAPP: (84) 99999-9999', centerX, y);
+  y += 18;
+
   // Caixa de destaque: COMPROVANTE DE PRESTAÇÃO DE SERVIÇOS
-  ctx.font = '700 11px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `700 13px ${FONT_SANS}`;
   const badgeText = 'COMPROVANTE DE PRESTAÇÃO DE SERVIÇOS';
-  const badgeW = ctx.measureText(badgeText).width + 24;
-  const badgeH = 22;
+  const badgeW = ctx.measureText(badgeText).width + 28;
+  const badgeH = 26;
   ctx.fillStyle = '#0a0a0a';
-  ctx.fillRect(centerX - badgeW / 2, y - 14, badgeW, badgeH);
+  ctx.fillRect(centerX - badgeW / 2, y - 13, badgeW, badgeH);
   ctx.fillStyle = '#ffffff';
   ctx.fillText(badgeText, centerX, y);
-  y += 18;
+  y += 20;
 
   ctx.restore();
   return y;
@@ -318,10 +267,18 @@ export async function generateThermalReceiptBlob(
   tech?: Profile | null,
   items: OrderItem[] = []
 ): Promise<GeneratedThermalReceipt> {
+  try {
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      await document.fonts.ready;
+    }
+  } catch {
+    // Continua caso document.fonts não esteja disponível
+  }
+
   const scale = 2.5; // Escala 2.5x para máxima nitidez de impressão e tela Retina
-  const logicalWidth = 580; // Largura padrão bobina 80mm
+  const logicalWidth = 680; // Largura ampliada para máxima nitidez e legibilidade
   const marginX = 28;
-  const contentWidth = logicalWidth - marginX * 2;
+  const contentWidth = logicalWidth - marginX * 2; // 624
   const centerX = logicalWidth / 2;
 
   // Carrega a assinatura digital antecipadamente se existir
@@ -352,7 +309,7 @@ export async function generateThermalReceiptBlob(
   const clientPhone = client?.phone || order.client?.phone || 'Não informado';
   const address = (order.address || order.client?.address || 'Endereço não informado').toUpperCase();
   const techName = (tech?.name || order.tech?.name || 'Técnico Autorizado Topa Tudo').toUpperCase();
-  const serviceDesc = (order.description || 'Prestação de serviços de manutenção e reparos gerais.').toUpperCase();
+  const serviceDesc = (order.description || 'Prestação de serviços técnicos e manutenção geral.').toUpperCase();
 
   const emissionDate = order.completed_at
     ? formatLocalDateTime(order.completed_at)
@@ -374,49 +331,54 @@ export async function generateThermalReceiptBlob(
   const measureCanvas = document.createElement('canvas');
   const mCtx = measureCanvas.getContext('2d')!;
 
-  mCtx.font = '12px "Space Mono", "Courier New", Consolas, monospace';
+  mCtx.font = `500 13px ${FONT_SANS}`;
   const descLines = wrapText(mCtx, serviceDesc, contentWidth);
   const addressLines = wrapText(mCtx, address, contentWidth - 85);
 
   // Cálculo da altura necessária
   let estHeight = 24; // Top serration & padding
-  estHeight += 180; // Logo e cabeçalho
-  estHeight += 36; // Divisor e título OS
-  estHeight += 80; // Dados cliente e OS
-  estHeight += (addressLines.length - 1) * 16; // Linhas adicionais de endereço
-  estHeight += 24; // Divisor
-  estHeight += 20 + descLines.length * 16; // Descrição do serviço
-  estHeight += 24; // Divisor
+  estHeight += 190; // Logo e cabeçalho
+  estHeight += 16; // Divisor
+  estHeight += 42; // Título OS e emissão
+  estHeight += 16; // Divisor
+  estHeight += 74; // Cliente, contato, técnico
+  estHeight += Math.max(18, addressLines.length * 17 + 2); // Linhas de endereço
+  estHeight += 16; // Divisor
+  estHeight += 24 + descLines.length * 17; // Descrição do serviço
+  estHeight += 16; // Divisor
 
   // Itens
   if (items && items.length > 0) {
-    estHeight += 24; // Cabeçalho itens
-    estHeight += items.length * 20; // Linhas de itens
-    estHeight += 24; // Divisor
+    estHeight += 16; // Cabeçalho itens
+    estHeight += 16; // Divisor
+    estHeight += items.length * 18; // Linhas de itens
+    estHeight += 16; // Divisor
+    estHeight += 38; // Subtotais e mão de obra
+  } else {
+    estHeight += 16; // Divisor
   }
 
-  estHeight += 70; // Subtotais e mão de obra
-  estHeight += 50; // Total Geral em destaque
-  estHeight += 30; // Forma de pagamento
-  estHeight += 24; // Divisor
+  estHeight += 42; // Total Geral em destaque
+  estHeight += 22; // Forma de pagamento
+  estHeight += 16; // Divisor
 
   // Bloco PIX com QR Code
-  estHeight += 36; // Título PIX
-  estHeight += 210; // QR Code e chave
-  estHeight += 24; // Divisor
+  estHeight += 34; // Título PIX e chave
+  estHeight += 225; // QR Code e legenda
+  estHeight += 16; // Divisor
 
   // Garantia
-  estHeight += 65; // Bloco garantia
-  estHeight += 24; // Divisor
+  estHeight += 54; // Bloco garantia
+  estHeight += 16; // Divisor
 
   // Assinatura
-  estHeight += signatureImg ? 110 : 80;
-  estHeight += 24; // Divisor
+  estHeight += (signatureImg && signatureImg.naturalWidth > 0 ? 54 : 35) + 52;
+  estHeight += 16; // Divisor
 
   // Código de barras e rodapé
-  estHeight += 80; // Barcode
-  estHeight += 50; // Mensagem final
-  estHeight += 30; // Bottom serration & padding
+  estHeight += 76; // Barcode
+  estHeight += 58; // Mensagem final
+  estHeight += 34; // Bottom serration & padding
 
   const totalHeight = Math.ceil(estHeight);
 
@@ -431,9 +393,9 @@ export async function generateThermalReceiptBlob(
   // Renderização limpa
   ctx.textBaseline = 'middle';
 
-  // 1. Recorte serrado da bobina (Fundo off-white autêntico de papel térmico)
+  // 1. Recorte serrado da bobina (Fundo branco puro)
   drawSerratedPaperPath(ctx, logicalWidth, totalHeight, 14.5, 8);
-  ctx.fillStyle = '#faf9f6'; // Papel térmico autêntico sutilmente off-white
+  ctx.fillStyle = '#ffffff'; // Papel térmico branco puro
   ctx.fill();
 
   // Borda sutil de corte
@@ -445,103 +407,99 @@ export async function generateThermalReceiptBlob(
   ctx.save();
   ctx.clip();
 
-  // Função auxiliar para desenhar divisores monoespaçados
-  const drawLine = (yPos: number, char = '-', strokeStyle?: string) => {
+  // Função auxiliar para desenhar divisores com linha sólida vetorial
+  function drawLine(y: number, strokeStyle = '#94a3b8', lineWidth = 1.5): number {
     ctx.save();
-    ctx.textAlign = 'center';
-    ctx.font = '700 11px "Space Mono", "Courier New", Consolas, monospace';
-    ctx.fillStyle = strokeStyle || '#4b5563';
-    const count = 48;
-    const text = char.repeat(count);
-    ctx.fillText(text, centerX, yPos);
+    ctx.strokeStyle = strokeStyle;
+    ctx.lineWidth = lineWidth;
+    ctx.beginPath();
+    ctx.moveTo(marginX, y);
+    ctx.lineTo(logicalWidth - marginX, y);
+    ctx.stroke();
     ctx.restore();
-  };
+    return y + 16;
+  }
 
   let curY = 16;
 
   // 2. Renderizar Logotipo e Cabeçalho
   curY = drawThermalLogo(ctx, centerX, curY);
 
-  // Divisor duplo
-  drawLine(curY, '=');
-  curY += 16;
+  // Divisor
+  curY = drawLine(curY);
 
   // 3. Informações da Ordem de Serviço
   ctx.textAlign = 'left';
   ctx.fillStyle = '#0a0a0a';
-  ctx.font = '700 15px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `800 17px ${FONT_SANS}`;
   ctx.fillText(`ORDEM DE SERVIÇO: #${codeFormatted}`, marginX, curY);
   ctx.textAlign = 'right';
-  ctx.font = '700 12px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `700 14px ${FONT_SANS}`;
   ctx.fillText('STATUS: CONCLUÍDO', logicalWidth - marginX, curY);
-  curY += 18;
+  curY += 20;
 
   ctx.textAlign = 'left';
-  ctx.font = '500 11px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `500 13px ${FONT_SANS}`;
   ctx.fillText(`EMISSÃO: ${emissionDate}`, marginX, curY);
-  curY += 16;
+  curY += 18;
 
-  drawLine(curY, '-');
-  curY += 16;
+  curY = drawLine(curY);
 
   // 4. Dados do Cliente e Técnico
-  ctx.font = '700 11px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `700 13px ${FONT_SANS}`;
   ctx.fillText('CLIENTE:', marginX, curY);
-  ctx.font = '600 12px "Space Mono", "Courier New", Consolas, monospace';
-  ctx.fillText(clientName, marginX + 65, curY);
-  curY += 16;
+  ctx.font = `600 14px ${FONT_SANS}`;
+  ctx.fillText(clientName, marginX + 85, curY);
+  curY += 18;
 
-  ctx.font = '700 11px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `700 13px ${FONT_SANS}`;
   ctx.fillText('CONTATO:', marginX, curY);
-  ctx.font = '500 11px "Space Mono", "Courier New", Consolas, monospace';
-  ctx.fillText(clientPhone, marginX + 65, curY);
-  curY += 16;
+  ctx.font = `600 13px ${FONT_MONO}`;
+  ctx.fillText(clientPhone, marginX + 85, curY);
+  curY += 18;
 
-  ctx.font = '700 11px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `700 13px ${FONT_SANS}`;
   ctx.fillText('ENDEREÇO:', marginX, curY);
-  ctx.font = '500 11px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `500 13px ${FONT_SANS}`;
   addressLines.forEach((line, idx) => {
-    ctx.fillText(line, marginX + 75, curY + idx * 15);
+    ctx.fillText(line, marginX + 85, curY + idx * 17);
   });
-  curY += Math.max(16, addressLines.length * 15 + 2);
+  curY += Math.max(18, addressLines.length * 17 + 2);
 
-  ctx.font = '700 11px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `700 13px ${FONT_SANS}`;
   ctx.fillText('TÉCNICO:', marginX, curY);
-  ctx.font = '600 11px "Space Mono", "Courier New", Consolas, monospace';
-  ctx.fillText(techName, marginX + 65, curY);
-  curY += 16;
+  ctx.font = `600 13px ${FONT_SANS}`;
+  ctx.fillText(techName, marginX + 85, curY);
+  curY += 18;
 
-  drawLine(curY, '-');
-  curY += 16;
+  curY = drawLine(curY);
 
   // 5. Descrição do Serviço Executado
-  ctx.font = '700 12px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `700 14px ${FONT_SANS}`;
   ctx.fillText('SERVIÇO EXECUTADO:', marginX, curY);
-  curY += 16;
+  curY += 18;
 
-  ctx.font = '500 11px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `500 13px ${FONT_SANS}`;
   descLines.forEach((line) => {
     ctx.fillText(line, marginX, curY);
-    curY += 15;
+    curY += 17;
   });
   curY += 4;
 
   // 6. Tabela de Peças e Materiais
   if (items && items.length > 0) {
-    drawLine(curY, '-');
-    curY += 14;
+    curY = drawLine(curY);
 
-    ctx.font = '700 11px "Space Mono", "Courier New", Consolas, monospace';
+    ctx.font = `700 13px ${FONT_MONO}`;
     ctx.fillText('QTD', marginX, curY);
-    ctx.fillText('DESCRIÇÃO / MATERIAL', marginX + 44, curY);
+    ctx.fillText('DESCRIÇÃO / MATERIAL', marginX + 50, curY);
     ctx.textAlign = 'right';
     ctx.fillText('VALOR (R$)', logicalWidth - marginX, curY);
-    curY += 14;
+    curY += 16;
 
-    drawLine(curY, '-');
-    curY += 14;
+    curY = drawLine(curY);
 
-    ctx.font = '500 11px "Space Mono", "Courier New", Consolas, monospace';
+    ctx.font = `500 13px ${FONT_MONO}`;
     items.forEach((item) => {
       const qtyStr = `${String(item.quantity || 1).padStart(2, '0')}x`;
       const itemSubtotal = Number(item.quantity || 1) * Number(item.unit_cost || 0);
@@ -551,7 +509,7 @@ export async function generateThermalReceiptBlob(
       ctx.fillText(qtyStr, marginX, curY);
 
       // Descrição do item com corte seguro
-      const maxItemDescW = contentWidth - 140;
+      const maxItemDescW = contentWidth - 170;
       let itName = (item.name || 'Item').toUpperCase();
       if (ctx.measureText(itName).width > maxItemDescW) {
         while (itName.length > 4 && ctx.measureText(`${itName}...`).width > maxItemDescW) {
@@ -559,81 +517,81 @@ export async function generateThermalReceiptBlob(
         }
         itName = `${itName}...`;
       }
-      ctx.fillText(itName, marginX + 44, curY);
+      ctx.fillText(itName, marginX + 50, curY);
 
       ctx.textAlign = 'right';
       ctx.fillText(valStr, logicalWidth - marginX, curY);
-      curY += 16;
+      curY += 18;
     });
 
-    drawLine(curY, '-');
-    curY += 16;
+    curY = drawLine(curY);
   } else {
-    drawLine(curY, '-');
-    curY += 16;
+    curY = drawLine(curY);
   }
 
   // 7. Totais e Subtotais
   ctx.textAlign = 'left';
-  ctx.font = '600 11px "Space Mono", "Courier New", Consolas, monospace';
   if (items && items.length > 0) {
+    ctx.font = `600 13px ${FONT_SANS}`;
     ctx.fillText('SUBTOTAL PEÇAS:', marginX, curY);
     ctx.textAlign = 'right';
+    ctx.font = `700 13px ${FONT_MONO}`;
     ctx.fillText(`R$ ${formatMoney(totalMaterials)}`, logicalWidth - marginX, curY);
-    curY += 16;
+    curY += 18;
 
     ctx.textAlign = 'left';
+    ctx.font = `600 13px ${FONT_SANS}`;
     ctx.fillText('MÃO DE OBRA:', marginX, curY);
     ctx.textAlign = 'right';
+    ctx.font = `700 13px ${FONT_MONO}`;
     ctx.fillText(`R$ ${formatMoney(maoDeObra)}`, logicalWidth - marginX, curY);
-    curY += 16;
+    curY += 18;
   }
 
   // Bloco de destaque TOTAL GERAL
   curY += 4;
   ctx.save();
   ctx.fillStyle = '#0a0a0a';
-  ctx.fillRect(marginX, curY - 14, contentWidth, 34);
+  ctx.fillRect(marginX, curY - 17, contentWidth, 38);
 
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'left';
-  ctx.font = '800 15px "Space Mono", "Courier New", Consolas, monospace';
-  ctx.fillText('TOTAL GERAL:', marginX + 12, curY + 3);
+  ctx.font = `800 17px ${FONT_SANS}`;
+  ctx.fillText('TOTAL GERAL:', marginX + 14, curY + 2);
 
   ctx.textAlign = 'right';
-  ctx.font = '900 18px "Space Mono", "Courier New", Consolas, monospace';
-  ctx.fillText(`R$ ${formatMoney(totalGeral)}`, logicalWidth - marginX - 12, curY + 3);
+  ctx.font = `900 21px ${FONT_MONO}`;
+  ctx.fillText(`R$ ${formatMoney(totalGeral)}`, logicalWidth - marginX - 14, curY + 2);
   ctx.restore();
-  curY += 32;
+  curY += 34;
 
   // Forma de pagamento
   ctx.fillStyle = '#0a0a0a';
   ctx.textAlign = 'left';
-  ctx.font = '700 11px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `700 13px ${FONT_SANS}`;
   ctx.fillText('FORMA DE PAGAMENTO:', marginX, curY);
   ctx.textAlign = 'right';
-  ctx.font = '700 12px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `700 14px ${FONT_SANS}`;
   ctx.fillText(paymentMethodLabel, logicalWidth - marginX, curY);
-  curY += 16;
+  curY += 18;
 
   // 8. Bloco PIX com QR Code
-  drawLine(curY, '*');
-  curY += 16;
+  curY = drawLine(curY);
 
   ctx.textAlign = 'center';
-  ctx.font = '800 13px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `800 15px ${FONT_SANS}`;
   ctx.fillText('PAGAMENTO INSTANTÂNEO PIX', centerX, curY);
-  curY += 14;
+  curY += 16;
 
-  ctx.font = '600 10px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `600 12px ${FONT_MONO}`;
   ctx.fillText(`CHAVE CNPJ: ${PIX_CNPJ_FORMATTED}`, centerX, curY);
-  curY += 12;
+  curY += 14;
 
   // Renderizar QR Code pixel a pixel
   if (qrModules) {
     const qrSize = qrModules.size;
     const qrData = qrModules.data;
-    const targetSize = 175;
+    const targetSize = 180;
     const modSize = Math.floor(targetSize / qrSize);
     const actualQrSize = modSize * qrSize;
     const qrLeft = Math.round(centerX - actualQrSize / 2);
@@ -660,30 +618,28 @@ export async function generateThermalReceiptBlob(
     curY += 30;
   }
 
-  ctx.font = '500 9.5px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `500 12px ${FONT_SANS}`;
   ctx.fillText('Abra o app do seu banco e aponte a câmera para pagar', centerX, curY);
-  curY += 14;
+  curY += 16;
 
   // 9. Garantia Técnica
-  drawLine(curY, '-');
-  curY += 16;
+  curY = drawLine(curY);
 
   ctx.textAlign = 'left';
-  ctx.font = '700 11px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `700 13px ${FONT_SANS}`;
   ctx.fillText(`GARANTIA DO SERVIÇO: ${warrantyDays} DIAS`, marginX, curY);
-  curY += 14;
-
-  ctx.font = '600 10.5px "Space Mono", "Courier New", Consolas, monospace';
-  ctx.fillText(`VALIDADE: ATÉ ${warrantyEndDate}`, marginX, curY);
-  curY += 14;
-
-  ctx.font = '500 9px "Space Mono", "Courier New", Consolas, monospace';
-  ctx.fillText('(Conforme Art. 26 da Lei 8.078/90 - Código de Defesa do Consumidor)', marginX, curY);
   curY += 16;
 
+  ctx.font = `600 13px ${FONT_SANS}`;
+  ctx.fillText(`VALIDADE: ATÉ ${warrantyEndDate}`, marginX, curY);
+  curY += 16;
+
+  ctx.font = `500 11px ${FONT_SANS}`;
+  ctx.fillText('(Conforme Art. 26 da Lei 8.078/90 - Código de Defesa do Consumidor)', marginX, curY);
+  curY += 18;
+
   // 10. Assinatura do Cliente
-  drawLine(curY, '-');
-  curY += 14;
+  curY = drawLine(curY);
 
   if (signatureImg && signatureImg.naturalWidth > 0) {
     const sigH = 50;
@@ -697,27 +653,26 @@ export async function generateThermalReceiptBlob(
 
   // Linha de assinatura
   ctx.textAlign = 'center';
-  ctx.font = '600 11px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `600 13px ${FONT_MONO}`;
   ctx.fillText('________________________________________', centerX, curY);
+  curY += 16;
+
+  ctx.font = `700 13px ${FONT_SANS}`;
+  ctx.fillText('ASSINATURA DO CLIENTE', centerX, curY);
   curY += 14;
 
-  ctx.font = '700 10.5px "Space Mono", "Courier New", Consolas, monospace';
-  ctx.fillText('ASSINATURA DO CLIENTE', centerX, curY);
-  curY += 12;
-
-  ctx.font = '500 9.5px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `500 12px ${FONT_SANS}`;
   ctx.fillText(clientName, centerX, curY);
   curY += 18;
 
   // 11. Código de Barras Vetorial Code 128
-  drawLine(curY, '=');
-  curY += 14;
+  curY = drawLine(curY);
 
   if (barcodeBits) {
     const bitWidth = 2;
     const barcodeTotalW = barcodeBits.length * bitWidth;
     const barcodeStartX = Math.round(centerX - barcodeTotalW / 2);
-    const barcodeH = 40;
+    const barcodeH = 42;
 
     ctx.fillStyle = '#0a0a0a';
     for (let b = 0; b < barcodeBits.length; b++) {
@@ -728,24 +683,24 @@ export async function generateThermalReceiptBlob(
     curY += barcodeH + 12;
 
     ctx.textAlign = 'center';
-    ctx.font = '700 11px "Space Mono", "Courier New", Consolas, monospace';
+    ctx.font = `700 13px ${FONT_MONO}`;
     ctx.fillText(`* ${barcodeStr} *`, centerX, curY);
-    curY += 16;
+    curY += 18;
   }
 
   // 12. Rodapé com Mensagem de Agradecimento
-  ctx.font = '800 12px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `800 14px ${FONT_SANS}`;
   ctx.fillText('MUITO OBRIGADO PELA PREFERÊNCIA!', centerX, curY);
+  curY += 16;
+
+  ctx.font = `600 12px ${FONT_SANS}`;
+  ctx.fillText('TOPA TUDO - CUIDANDO DO SEU PATRIMÔNIO', centerX, curY);
   curY += 14;
 
-  ctx.font = '600 10px "Space Mono", "Courier New", Consolas, monospace';
-  ctx.fillText('TOPA TUDO - CUIDANDO DO SEU PATRIMÔNIO', centerX, curY);
-  curY += 12;
-
-  ctx.font = '500 8.5px "Space Mono", "Courier New", Consolas, monospace';
+  ctx.font = `500 11px ${FONT_MONO}`;
   ctx.fillStyle = '#6b7280';
   ctx.fillText(`AUTENTICAÇÃO: TOPA-OS${codeFormatted}-VERIFIED`, centerX, curY);
-  curY += 20;
+  curY += 24;
 
   ctx.restore();
 

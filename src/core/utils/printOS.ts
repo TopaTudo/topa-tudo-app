@@ -25,7 +25,7 @@ export function generateOrderPrintHTML(order: Order, items: OrderItem[] = []): s
   const clientPhone = escapeHtml(order.client?.phone || 'Telefone não informado');
   const address = escapeHtml(order.address || order.client?.address || 'Endereço não informado');
   const techName = escapeHtml(order.tech?.name || 'Técnico Responsável Autorizado');
-  const description = escapeHtml(order.description || 'Prestação de serviços técnicos de manutenção e reparos gerais.');
+  const description = escapeHtml(order.description || 'Prestação de serviços técnicos e manutenção geral.');
 
   const emissionDate = formatLocalDateTime(order.created_at) || '---';
   const scheduledDate = order.scheduled_at ? formatLocalDateTime(order.scheduled_at) : null;

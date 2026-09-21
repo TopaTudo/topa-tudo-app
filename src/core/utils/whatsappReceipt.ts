@@ -134,7 +134,7 @@ export function generateReceiptMessage(
     ? formatLocalDateTime(order.completed_at)
     : formatLocalDateTime(new Date().toISOString());
 
-  const serviceDesc = (order.description || 'Prestação de serviços técnicos de manutenção e reparos.').trim();
+  const serviceDesc = (order.description || 'Prestação de serviços técnicos e especializados.').trim();
 
   const totalPrice = Number(order.total_price || 0).toFixed(2).replace('.', ',');
   const paymentMethod = formatPaymentMethodLabel(order.payment_method);
@@ -199,9 +199,9 @@ export function generateReceiptMessage(
   lines.push('');
   lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━');
   lines.push('🤝 *Agradecemos imensamente pela confiança!*');
-  lines.push('Foi um prazer te atender. Se precisar de qualquer suporte ou de um novo reparo, estamos sempre à sua disposição! 📲💬');
+  lines.push('Foi um prazer te atender. Se precisar de qualquer suporte ou de um novo serviço, estamos sempre à sua disposição! 📲💬');
   lines.push('');
-  lines.push('⭐ *Topa Tudo:* O seu parceiro de confiança para qualquer reparo! 🔧⚡');
+  lines.push('⭐ *Topa Tudo:* O seu parceiro de confiança para qualquer serviço! 🔧⚡');
 
   return lines.join('\n');
 }

@@ -223,7 +223,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative w-full max-w-lg bg-slate-900 border border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[96vh] my-auto animate-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-lg md:max-w-xl bg-slate-900 border border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[96vh] my-auto animate-in zoom-in-95 duration-200">
         {/* Header do Modal */}
         <div className="px-5 py-4 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
@@ -272,13 +272,20 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
               </div>
             </div>
           ) : receipt ? (
-            <div className="relative group max-w-[380px] w-full transition-all duration-300">
-              {/* Efeito de Sombra e Borda do Papel Térmico */}
-              <div className="relative rounded-sm filter drop-shadow-[0_20px_35px_rgba(0,0,0,0.7)] transition-transform">
+            <div className="relative group max-w-[460px] md:max-w-[500px] w-full transition-all duration-300">
+              {/* Selo/badge verde no topo da imagem */}
+              <div className="flex items-center justify-center mb-3">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-semibold shadow-sm backdrop-blur-xs">
+                  ✓ Alta Resolução HD (1700px)
+                </span>
+              </div>
+
+              {/* Efeito de Sombra, Borda Sutil e Cantos Arredondados do Papel Térmico */}
+              <div className="relative rounded-2xl overflow-hidden border border-slate-700/60 shadow-2xl shadow-black/80 transition-transform">
                 <img
                   src={receipt.dataUrl}
                   alt={`Recibo Térmico OS ${codeFormatted}`}
-                  className="w-full h-auto block select-none rounded-xs pointer-events-auto"
+                  className="w-full h-auto block select-none rounded-2xl pointer-events-auto"
                 />
               </div>
 

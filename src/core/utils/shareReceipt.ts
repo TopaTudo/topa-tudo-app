@@ -111,7 +111,7 @@ export async function shareThermalReceiptImage(
   const shareTitle = `Recibo Topa Tudo OS ${codeStr}`;
   const shareText =
     options.customText ||
-    `Olá ${clientName}! Segue o comprovante de prestação de serviços da OS ${codeStr} - Topa Tudo Manutenção & Reformas. Agradecemos a preferência! ✨`;
+    `Olá ${clientName}! Segue o comprovante de prestação de serviços da OS ${codeStr} - Topa Tudo Manutenção & Serviços. Agradecemos a preferência! ✨`;
 
   // 1. Tentar Web Share nativo (Mobile Android / iOS)
   if (canShareFiles()) {
