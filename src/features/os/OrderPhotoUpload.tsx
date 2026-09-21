@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { uploadMedia } from '@/core/supabase';
 import { useToast } from '@/core/context/ToastContext';
+import { compressImage } from '@/core/utils/image';
 import { Camera, ImagePlus, Trash2, Loader2, ExternalLink } from 'lucide-react';
 
 interface OrderPhotoUploadProps {
@@ -27,21 +28,47 @@ export const OrderPhotoUpload: React.FC<OrderPhotoUploadProps> = ({
 
     setUploading(true);
     const newUrls: string[] = [];
+    const errors: string[] = [];
 
     try {
       for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const publicUrl = await uploadMedia(file, folder);
-        newUrls.push(publicUrl);
+        const originalFile = files[i];
+        try {
+          // Comprimir imagem antes do upload (ex: de 10MB para ~300KB)
+          const compressedFile = await compressImage(originalFile);
+          const publicUrl = await uploadMedia(compressedFile, folder);
+          newUrls.push(publicUrl);
+        } catch (fileErr: any) {
+          console.error(`Falha no upload do arquivo ${originalFile.name}:`, fileErr);
+          errors.push(originalFile.name);
+        }
       }
-      onChange([...photos, ...newUrls]);
-      success('Foto enviada com sucesso!');
+
+      if (newUrls.length > 0) {
+        onChange([...photos, ...newUrls]);
+        if (errors.length === 0) {
+          success(
+            newUrls.length === 1
+              ? 'Foto enviada e otimizada com sucesso!'
+              : `${newUrls.length} fotos enviadas e otimizadas com sucesso!`
+          );
+        } else {
+          success(`${newUrls.length} foto(s) enviada(s), mas ${errors.length} falhou.`);
+        }
+      }
+
+      if (errors.length > 0) {
+        toastError(
+          'Falha parcial no upload',
+          `Não foi possível enviar: ${errors.join(', ')}`
+        );
+      }
     } catch (err: any) {
-      console.error('Falha no upload:', err);
+      console.error('Falha geral no upload:', err);
       toastError('Erro ao enviar foto', err.message || 'Tente novamente');
     } finally {
       setUploading(false);
-      // Reset input
+      // Reset input para permitir selecionar o mesmo arquivo novamente se necessário
       e.target.value = '';
     }
   };

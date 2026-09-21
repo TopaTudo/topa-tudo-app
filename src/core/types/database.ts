@@ -9,7 +9,7 @@ export type ToolStatus = 'disponivel' | 'emprestada' | 'manutencao';
 export interface Profile {
   id: string;
   name: string;
-  pin: string;
+  pin?: string;
   role: ProfileRole;
   active: boolean;
   created_at: string;

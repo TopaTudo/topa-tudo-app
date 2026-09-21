@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/core/supabase';
 import { useAuth } from '@/core/context/AuthContext';
 import { useToast } from '@/core/context/ToastContext';
+import { parseBRLNumber, formatBRL } from '@/core/utils/currency';
+import { getLocalDateString } from '@/core/utils/date';
 import type { Transaction } from '@/core/types/database';
 import {
   DollarSign,
@@ -17,6 +19,7 @@ import {
   Search,
   ArrowUpRight,
   ArrowDownLeft,
+  ShieldAlert,
 } from 'lucide-react';
 
 export const FinancialView: React.FC = () => {
@@ -32,11 +35,11 @@ export const FinancialView: React.FC = () => {
   // Modal new transaction
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [type, setType] = useState<'receita' | 'despesa'>('despesa');
-  const [amount, setAmount] = useState<number>(0);
+  const [amount, setAmount] = useState<string>('0');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [status, setStatus] = useState<'confirmado' | 'pendente'>('confirmado');
-  const [date, setDate] = useState(new Date().toISOString().substring(0, 10));
+  const [date, setDate] = useState(getLocalDateString());
   const [saving, setSaving] = useState(false);
 
   const fetchTransactions = async () => {
@@ -105,29 +108,30 @@ export const FinancialView: React.FC = () => {
 
   const handleCreateTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim() || amount <= 0) return;
+    const parsedAmount = parseBRLNumber(amount);
+    if (!description.trim() || parsedAmount <= 0) return;
     setSaving(true);
 
     try {
       const { error } = await supabase.from('transactions').insert({
         type,
-        amount: Number(amount),
+        amount: parsedAmount,
         description: description.trim(),
         category: category.trim() || (type === 'receita' ? 'Serviço' : 'Geral'),
         status,
-        date: date || new Date().toISOString().substring(0, 10),
+        date: date || getLocalDateString(),
       });
 
       if (error) throw error;
 
       success(
         `Lançamento de ${type === 'receita' ? 'Receita' : 'Despesa'} registrado!`,
-        `R$ ${Number(amount).toFixed(2)} - ${description}`
+        `R$ ${parsedAmount.toFixed(2)} - ${description}`
       );
       setIsModalOpen(false);
       // Reset
       setDescription('');
-      setAmount(0);
+      setAmount('0');
       setCategory('');
       fetchTransactions();
     } catch (err: any) {
@@ -153,6 +157,22 @@ export const FinancialView: React.FC = () => {
     }
   };
 
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 sm:p-12 bg-white rounded-3xl border border-slate-200 text-center min-h-[400px] shadow-xs">
+        <div className="w-16 h-16 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-600 mb-4 shadow-inner">
+          <ShieldAlert className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl sm:text-2xl font-black text-industrial-900 mb-2">
+          Acesso Restrito ao Financeiro
+        </h2>
+        <p className="text-sm text-slate-500 max-w-md">
+          O módulo de gestão financeira e fluxo de caixa é exclusivo para administradores da Topa Tudo.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Top Banner */}
@@ -170,7 +190,7 @@ export const FinancialView: React.FC = () => {
           type="button"
           onClick={() => {
             setType('despesa');
-            setAmount(0);
+            setAmount('0');
             setDescription('');
             setCategory('');
             setIsModalOpen(true);
@@ -459,12 +479,12 @@ export const FinancialView: React.FC = () => {
                   Valor (R$) *
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0,00"
                   required
                   value={amount}
-                  onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+                  onChange={(e) => setAmount(e.target.value)}
                   className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-lg font-black text-slate-900 focus:ring-2 focus:ring-industrial-800"
                 />
               </div>

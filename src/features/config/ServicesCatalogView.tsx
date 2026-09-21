@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/core/supabase';
+import { useAuth } from '@/core/context/AuthContext';
 import { useToast } from '@/core/context/ToastContext';
+import { parseBRLNumber } from '@/core/utils/currency';
 import type { ServiceCatalogItem } from '@/core/types/database';
-import { BookOpen, Plus, Edit2, Trash2, X, Save, Search, Sparkles } from 'lucide-react';
+import { BookOpen, Plus, Edit2, Trash2, X, Save, Search, Sparkles, ShieldAlert } from 'lucide-react';
 
 export const ServicesCatalogView: React.FC = () => {
+  const { isAdmin } = useAuth();
   const { success, error: toastError } = useToast();
 
   const [services, setServices] = useState<ServiceCatalogItem[]>([]);
@@ -16,7 +19,7 @@ export const ServicesCatalogView: React.FC = () => {
   const [editingItem, setEditingItem] = useState<ServiceCatalogItem | null>(null);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
-  const [defaultPrice, setDefaultPrice] = useState<number>(0);
+  const [defaultPrice, setDefaultPrice] = useState<string>('0');
   const [saving, setSaving] = useState(false);
 
   const fetchServices = async () => {
@@ -52,7 +55,7 @@ export const ServicesCatalogView: React.FC = () => {
     setEditingItem(null);
     setTitle('');
     setCategory('Elétrica');
-    setDefaultPrice(0);
+    setDefaultPrice('0');
     setIsModalOpen(true);
   };
 
@@ -60,7 +63,7 @@ export const ServicesCatalogView: React.FC = () => {
     setEditingItem(item);
     setTitle(item.title);
     setCategory(item.category || '');
-    setDefaultPrice(Number(item.default_price) || 0);
+    setDefaultPrice(item.default_price != null ? String(item.default_price) : '0');
     setIsModalOpen(true);
   };
 
@@ -73,7 +76,7 @@ export const ServicesCatalogView: React.FC = () => {
       const payload = {
         title: title.trim(),
         category: category.trim() || null,
-        default_price: Number(defaultPrice) || 0,
+        default_price: parseBRLNumber(defaultPrice),
       };
 
       if (editingItem) {
@@ -111,6 +114,22 @@ export const ServicesCatalogView: React.FC = () => {
       toastError('Erro ao excluir serviço', err.message);
     }
   };
+
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 sm:p-12 bg-white rounded-3xl border border-slate-200 text-center min-h-[400px] shadow-xs">
+        <div className="w-16 h-16 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-600 mb-4 shadow-inner">
+          <ShieldAlert className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl sm:text-2xl font-black text-industrial-900 mb-2">
+          Acesso Restrito ao Catálogo de Serviços
+        </h2>
+        <p className="text-sm text-slate-500 max-w-md">
+          Apenas administradores podem cadastrar, precificar e editar os serviços do catálogo padrão.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -251,12 +270,12 @@ export const ServicesCatalogView: React.FC = () => {
                   Preço Base Sugerido (R$) *
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0,00"
                   required
                   value={defaultPrice}
-                  onChange={(e) => setDefaultPrice(parseFloat(e.target.value) || 0)}
+                  onChange={(e) => setDefaultPrice(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold text-slate-900"
                 />
               </div>

@@ -26,7 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, name, role, active, created_at')
         .eq('active', true)
         .order('name');
 
@@ -59,15 +59,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [refreshProfiles]);
 
   const loginWithPin = async (profileId: string, pin: string): Promise<boolean> => {
-    const profile = profiles.find((p) => p.id === profileId);
-    if (!profile) return false;
+    try {
+      // Validação segura de PIN via RPC no PostgreSQL
+      const { data, error } = await supabase.rpc('verify_user_pin', {
+        p_user_id: profileId,
+        p_pin: pin,
+      });
 
-    if (profile.pin === pin) {
-      setCurrentProfile(profile);
-      localStorage.setItem(STORAGE_KEY, profile.id);
-      return true;
+      if (error) {
+        console.error('Erro ao verificar PIN via RPC:', error);
+        return false;
+      }
+
+      if (data === true) {
+        const profile = profiles.find((p) => p.id === profileId);
+        if (profile) {
+          setCurrentProfile(profile);
+          localStorage.setItem(STORAGE_KEY, profile.id);
+          return true;
+        }
+      }
+      return false;
+    } catch (err) {
+      console.error('Exceção ao autenticar com PIN:', err);
+      return false;
     }
-    return false;
   };
 
   const logout = () => {

@@ -27,3 +27,4 @@ tsconfig.tsbuildinfo
 # Environment files
 .env*
 !.env.example
+.vercel

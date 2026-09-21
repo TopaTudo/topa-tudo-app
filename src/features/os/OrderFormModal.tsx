@@ -3,6 +3,8 @@ import { supabase } from '@/core/supabase';
 import { useAuth } from '@/core/context/AuthContext';
 import { useToast } from '@/core/context/ToastContext';
 import type { Order, Client, Profile, OrderItem, ServiceCatalogItem } from '@/core/types/database';
+import { getLocalDateString, getLocalTimeString, createLocalISOString } from '@/core/utils/date';
+import { parseBRLNumber } from '@/core/utils/currency';
 import { OrderItemsManager } from './OrderItemsManager';
 import { OrderPhotoUpload } from './OrderPhotoUpload';
 import {
@@ -15,6 +17,7 @@ import {
   Sparkles,
   Save,
   CheckCircle,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface OrderFormModalProps {
@@ -43,7 +46,7 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
   const [status, setStatus] = useState<Order['status']>('orcamento');
   const [address, setAddress] = useState<string>('');
   const [description, setDescription] = useState<string>('');
-  const [totalPrice, setTotalPrice] = useState<number>(0);
+  const [totalPrice, setTotalPrice] = useState<string>('0');
   const [paymentMethod, setPaymentMethod] = useState<string>('pix');
   const [warrantyDays, setWarrantyDays] = useState<number>(90);
   const [scheduledAtDate, setScheduledAtDate] = useState<string>('');
@@ -83,16 +86,17 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
       setStatus(orderToEdit.status);
       setAddress(orderToEdit.address || '');
       setDescription(orderToEdit.description || '');
-      setTotalPrice(Number(orderToEdit.total_price) || 0);
+      setTotalPrice(
+        orderToEdit.total_price != null ? String(orderToEdit.total_price) : '0'
+      );
       setPaymentMethod(orderToEdit.payment_method || 'pix');
       setWarrantyDays(orderToEdit.warranty_days || 90);
       setPhotosBefore(orderToEdit.photos_before || []);
       setPhotosAfter(orderToEdit.photos_after || []);
 
       if (orderToEdit.scheduled_at) {
-        const d = new Date(orderToEdit.scheduled_at);
-        setScheduledAtDate(d.toISOString().substring(0, 10));
-        setScheduledAtTime(d.toTimeString().substring(0, 5));
+        setScheduledAtDate(getLocalDateString(orderToEdit.scheduled_at));
+        setScheduledAtTime(getLocalTimeString(orderToEdit.scheduled_at));
       } else {
         setScheduledAtDate('');
         setScheduledAtTime('');
@@ -123,10 +127,10 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
       setStatus('orcamento');
       setAddress('');
       setDescription('');
-      setTotalPrice(0);
+      setTotalPrice('0');
       setPaymentMethod('pix');
       setWarrantyDays(90);
-      setScheduledAtDate(new Date().toISOString().substring(0, 10));
+      setScheduledAtDate(getLocalDateString());
       setScheduledAtTime('09:00');
       setPhotosBefore([]);
       setPhotosAfter([]);
@@ -150,8 +154,12 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
       ? `${description}\n• ${catalogItem.title}`
       : `• ${catalogItem.title}`;
     setDescription(updatedDesc);
-    setTotalPrice((prev) => prev + Number(catalogItem.default_price || 0));
+    setTotalPrice((prev) =>
+      (parseBRLNumber(prev) + Number(catalogItem.default_price || 0)).toFixed(2)
+    );
   };
+
+  const isConcluded = orderToEdit?.status === 'concluido';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,12 +188,10 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
         finalClientId = newClient.id;
       }
 
-      // Format schedule datetime
+      // Format schedule datetime with local timezone preservation
       let scheduledAt: string | null = null;
       if (scheduledAtDate) {
-        scheduledAt = scheduledAtTime
-          ? `${scheduledAtDate}T${scheduledAtTime}:00`
-          : `${scheduledAtDate}T09:00:00`;
+        scheduledAt = createLocalISOString(scheduledAtDate, scheduledAtTime || '09:00');
       }
 
       const orderPayload = {
@@ -194,7 +200,7 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
         status,
         address: address.trim() || null,
         description: description.trim() || null,
-        total_price: Number(totalPrice) || 0,
+        total_price: parseBRLNumber(totalPrice),
         payment_method: paymentMethod,
         warranty_days: Number(warrantyDays) || 90,
         photos_before: photosBefore,
@@ -213,8 +219,10 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
 
         if (updateErr) throw updateErr;
 
-        // Replace items
-        await supabase.from('order_items').delete().eq('order_id', orderToEdit.id);
+        // Se a OS já estiver concluída, não substitui itens para evitar descompasso de estoque
+        if (!isConcluded) {
+          await supabase.from('order_items').delete().eq('order_id', orderToEdit.id);
+        }
       } else {
         // Insert
         const { data: newOrder, error: insertErr } = await supabase
@@ -227,8 +235,8 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
         savedOrderId = newOrder.id;
       }
 
-      // Save order items
-      if (items.length > 0 && savedOrderId) {
+      // Save order items only if not concluded or if creating new
+      if (items.length > 0 && savedOrderId && !isConcluded) {
         const itemsToInsert = items.map((it) => ({
           order_id: savedOrderId,
           material_id: it.material_id,
@@ -468,8 +476,20 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
           </div>
 
           {/* Order Items & Stock Deduction */}
-          <div className="pt-2 border-t border-slate-200">
-            <OrderItemsManager items={items} onChange={setItems} />
+          <div className="pt-2 border-t border-slate-200 space-y-3">
+            {isConcluded && (
+              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-2.5 text-amber-900 text-xs">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">Ordem de Serviço já Concluída</p>
+                  <p className="mt-0.5 text-amber-800">
+                    A baixa dos materiais de estoque e a receita financeira já foram processadas.
+                    A alteração de itens de estoque está bloqueada para preservar a integridade contábil.
+                  </p>
+                </div>
+              </div>
+            )}
+            <OrderItemsManager items={items} onChange={setItems} disabled={isConcluded} />
           </div>
 
           {/* Financials & Payment */}
@@ -484,12 +504,12 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
                     R$
                   </span>
                   <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     value={totalPrice}
-                    onChange={(e) => setTotalPrice(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => setTotalPrice(e.target.value)}
                     required
+                    placeholder="0,00"
                     className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-industrial-300 bg-white text-base font-bold text-slate-900 focus:ring-2 focus:ring-industrial-800 focus:outline-hidden"
                   />
                 </div>

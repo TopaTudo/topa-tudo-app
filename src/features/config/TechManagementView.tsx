@@ -6,6 +6,7 @@ import type { Profile } from '@/core/types/database';
 import {
   UsersRound,
   ShieldCheck,
+  ShieldAlert,
   Wrench,
   Plus,
   KeyRound,
@@ -18,7 +19,7 @@ import {
 } from 'lucide-react';
 
 export const TechManagementView: React.FC = () => {
-  const { profiles, refreshProfiles } = useAuth();
+  const { profiles, refreshProfiles, isAdmin } = useAuth();
   const { success, error: toastError } = useToast();
 
   const [loading, setLoading] = useState(false);
@@ -47,7 +48,7 @@ export const TechManagementView: React.FC = () => {
   const handleOpenEdit = (p: Profile) => {
     setEditingProfile(p);
     setName(p.name);
-    setPin(p.pin);
+    setPin(''); // Deixa em branco ao editar para não expor ou sobrescrever sem intenção
     setRole(p.role);
     setIsModalOpen(true);
   };
@@ -56,21 +57,32 @@ export const TechManagementView: React.FC = () => {
     e.preventDefault();
     if (!name.trim()) return;
 
-    if (!/^[0-9]{4}$/.test(pin)) {
-      toastError('PIN Inválido', 'O PIN deve conter exatamente 4 dígitos numéricos.');
-      return;
+    if (editingProfile) {
+      if (pin && !/^[0-9]{4}$/.test(pin)) {
+        toastError('PIN Inválido', 'O novo PIN deve conter exatamente 4 dígitos numéricos.');
+        return;
+      }
+    } else {
+      if (!/^[0-9]{4}$/.test(pin)) {
+        toastError('PIN Inválido', 'O PIN deve conter exatamente 4 dígitos numéricos.');
+        return;
+      }
     }
 
     setSaving(true);
     try {
       if (editingProfile) {
+        const updatePayload: Record<string, any> = {
+          name: name.trim(),
+          role,
+        };
+        if (pin.trim()) {
+          updatePayload.pin = pin;
+        }
+
         const { error } = await supabase
           .from('profiles')
-          .update({
-            name: name.trim(),
-            pin,
-            role,
-          })
+          .update(updatePayload)
           .eq('id', editingProfile.id);
 
         if (error) throw error;
@@ -142,6 +154,22 @@ export const TechManagementView: React.FC = () => {
       toastError('Erro ao atualizar PIN', err.message);
     }
   };
+
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 sm:p-12 bg-white rounded-3xl border border-slate-200 text-center min-h-[400px] shadow-xs">
+        <div className="w-16 h-16 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-600 mb-4 shadow-inner">
+          <ShieldAlert className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl sm:text-2xl font-black text-industrial-900 mb-2">
+          Acesso Restrito à Gestão de Equipe
+        </h2>
+        <p className="text-sm text-slate-500 max-w-md">
+          Apenas administradores podem gerenciar técnicos, funções e credenciais de acesso.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -307,14 +335,14 @@ export const TechManagementView: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  PIN de 4 Dígitos Numéricos *
+                  {editingProfile ? 'Alterar PIN (Opcional - 4 dígitos)' : 'PIN de 4 Dígitos Numéricos *'}
                 </label>
                 <input
                   type="password"
                   inputMode="numeric"
                   maxLength={4}
-                  required
-                  placeholder="0000"
+                  required={!editingProfile}
+                  placeholder={editingProfile ? 'Deixe vazio para manter o atual' : '0000'}
                   value={pin}
                   onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 text-base font-mono text-center tracking-widest"

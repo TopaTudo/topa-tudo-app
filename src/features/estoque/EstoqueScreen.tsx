@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/core/supabase';
 import { useAuth } from '@/core/context/AuthContext';
 import { useToast } from '@/core/context/ToastContext';
+import { parseBRLNumber } from '@/core/utils/currency';
 import type { InventoryStockView, InventoryMovement } from '@/core/types/database';
 import {
   Package,
@@ -33,7 +34,7 @@ export const EstoqueScreen: React.FC = () => {
   const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<InventoryStockView | null>(null);
   const [movementType, setMovementType] = useState<'entrada' | 'saida'>('entrada');
-  const [movementQty, setMovementQty] = useState<number>(1);
+  const [movementQty, setMovementQty] = useState<string>('1');
   const [movementNotes, setMovementNotes] = useState('');
   const [submittingMovement, setSubmittingMovement] = useState(false);
 
@@ -44,9 +45,9 @@ export const EstoqueScreen: React.FC = () => {
   const [code, setCode] = useState('');
   const [category, setCategory] = useState('');
   const [unit, setUnit] = useState('un');
-  const [minStock, setMinStock] = useState<number>(5);
-  const [maxStock, setMaxStock] = useState<number>(50);
-  const [costPrice, setCostPrice] = useState<number>(0);
+  const [minStock, setMinStock] = useState<string>('5');
+  const [maxStock, setMaxStock] = useState<string>('50');
+  const [costPrice, setCostPrice] = useState<string>('0');
   const [supplier, setSupplier] = useState('');
   const [savingMaterial, setSavingMaterial] = useState(false);
 
@@ -99,21 +100,22 @@ export const EstoqueScreen: React.FC = () => {
   const handleOpenMovement = (item: InventoryStockView, type: 'entrada' | 'saida') => {
     setSelectedMaterial(item);
     setMovementType(type);
-    setMovementQty(1);
+    setMovementQty('1');
     setMovementNotes('');
     setIsMovementModalOpen(true);
   };
 
   const handleSaveMovement = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedMaterial || movementQty <= 0) return;
+    const qty = parseBRLNumber(movementQty);
+    if (!selectedMaterial || qty <= 0) return;
     setSubmittingMovement(true);
 
     try {
       const { error } = await supabase.from('inventory_movements').insert({
         material_id: selectedMaterial.id,
         type: movementType,
-        quantity: movementQty,
+        quantity: qty,
         notes: movementNotes.trim() || `Lançamento manual avulso (${movementType})`,
       });
 
@@ -121,7 +123,7 @@ export const EstoqueScreen: React.FC = () => {
 
       success(
         `Movimentação registrada com sucesso!`,
-        `${movementType === 'entrada' ? '+' : '-'}${movementQty} ${selectedMaterial.unit} em ${selectedMaterial.name}`
+        `${movementType === 'entrada' ? '+' : '-'}${qty} ${selectedMaterial.unit} em ${selectedMaterial.name}`
       );
       setIsMovementModalOpen(false);
       fetchStock();
@@ -139,9 +141,9 @@ export const EstoqueScreen: React.FC = () => {
     setCode('');
     setCategory('');
     setUnit('un');
-    setMinStock(5);
-    setMaxStock(50);
-    setCostPrice(0);
+    setMinStock('5');
+    setMaxStock('50');
+    setCostPrice('0');
     setSupplier('');
     setIsMaterialModalOpen(true);
   };
@@ -152,9 +154,9 @@ export const EstoqueScreen: React.FC = () => {
     setCode(m.code || '');
     setCategory(m.category || '');
     setUnit(m.unit || 'un');
-    setMinStock(Number(m.min_stock) || 0);
-    setMaxStock(Number(m.max_stock) || 0);
-    setCostPrice(Number(m.cost_price) || 0);
+    setMinStock(m.min_stock != null ? String(m.min_stock) : '0');
+    setMaxStock(m.max_stock != null ? String(m.max_stock) : '0');
+    setCostPrice(m.cost_price != null ? String(m.cost_price) : '0');
     setSupplier(m.supplier || '');
     setIsMaterialModalOpen(true);
   };
@@ -170,9 +172,9 @@ export const EstoqueScreen: React.FC = () => {
         code: code.trim() || null,
         category: category.trim() || null,
         unit: unit.trim() || 'un',
-        min_stock: Number(minStock) || 0,
-        max_stock: Number(maxStock) || 0,
-        cost_price: Number(costPrice) || 0,
+        min_stock: parseBRLNumber(minStock),
+        max_stock: parseBRLNumber(maxStock),
+        cost_price: parseBRLNumber(costPrice),
         supplier: supplier.trim() || null,
       };
 
@@ -468,12 +470,12 @@ export const EstoqueScreen: React.FC = () => {
                   Quantidade ({selectedMaterial.unit}) *
                 </label>
                 <input
-                  type="number"
-                  step="0.1"
-                  min="0.1"
+                  type="text"
+                  inputMode="decimal"
                   required
                   value={movementQty}
-                  onChange={(e) => setMovementQty(parseFloat(e.target.value) || 0)}
+                  onChange={(e) => setMovementQty(e.target.value)}
+                  placeholder="1,0"
                   className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-lg font-bold text-slate-800 focus:ring-2 focus:ring-industrial-800"
                 />
               </div>
@@ -596,9 +598,10 @@ export const EstoqueScreen: React.FC = () => {
                     Estoque Mínimo
                   </label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     value={minStock}
-                    onChange={(e) => setMinStock(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => setMinStock(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
                   />
                 </div>
@@ -607,21 +610,23 @@ export const EstoqueScreen: React.FC = () => {
                     Estoque Máximo
                   </label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     value={maxStock}
-                    onChange={(e) => setMaxStock(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => setMaxStock(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                    Preço de Custo
+                    Preço de Custo (R$)
                   </label>
                   <input
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0,00"
                     value={costPrice}
-                    onChange={(e) => setCostPrice(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => setCostPrice(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
                   />
                 </div>

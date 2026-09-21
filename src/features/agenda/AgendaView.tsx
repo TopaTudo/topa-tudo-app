@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/core/supabase';
 import { useAuth } from '@/core/context/AuthContext';
 import { useToast } from '@/core/context/ToastContext';
+import { getLocalDateString } from '@/core/utils/date';
 import type { ScheduleItem, Client, Profile } from '@/core/types/database';
 import {
   Calendar as CalendarIcon,
@@ -26,9 +27,7 @@ export const AgendaView: React.FC = () => {
 
   const [scheduleList, setScheduleList] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().substring(0, 10)
-  );
+  const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
 
   // New Schedule Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -209,7 +208,7 @@ export const AgendaView: React.FC = () => {
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
-            onClick={() => setSelectedDate(new Date().toISOString().substring(0, 10))}
+            onClick={() => setSelectedDate(getLocalDateString())}
             className="px-3 py-1.5 rounded-xl text-xs font-bold bg-industrial-50 text-industrial-900 border border-industrial-200 hover:bg-industrial-100"
           >
             Hoje
@@ -219,7 +218,7 @@ export const AgendaView: React.FC = () => {
             onClick={() => {
               const tomorrow = new Date();
               tomorrow.setDate(tomorrow.getDate() + 1);
-              setSelectedDate(tomorrow.toISOString().substring(0, 10));
+              setSelectedDate(getLocalDateString(tomorrow));
             }}
             className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200"
           >

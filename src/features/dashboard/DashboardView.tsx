@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/core/supabase';
 import { useAuth } from '@/core/context/AuthContext';
 import { useToast } from '@/core/context/ToastContext';
+import { getLocalDateString } from '@/core/utils/date';
+import { sanitizeCsvCell } from '@/core/utils/security';
 import type { Order, Profile, Transaction } from '@/core/types/database';
 import {
   BarChart3,
@@ -24,8 +26,8 @@ export const DashboardView: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Month selector (defaults to current month YYYY-MM)
-  const currentMonthStr = new Date().toISOString().substring(0, 7);
+  // Month selector (defaults to current month YYYY-MM in local timezone)
+  const currentMonthStr = getLocalDateString().substring(0, 7);
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthStr);
 
   const fetchData = async () => {
@@ -63,8 +65,22 @@ export const DashboardView: React.FC = () => {
   // Filtered orders and transactions for the selected month
   const monthOrders = useMemo(() => {
     return orders.filter((o) => {
-      const dateToCheck = o.completed_at || o.created_at;
-      return dateToCheck?.startsWith(selectedMonth);
+      const createdMonth = (o.created_at || '').substring(0, 7);
+      const completedMonth = o.completed_at ? o.completed_at.substring(0, 7) : null;
+
+      // Se a OS foi concluída: pertence ao mês em que foi concluída (ou criada se sem completed_at)
+      if (o.status === 'concluido') {
+        return completedMonth === selectedMonth || (!completedMonth && createdMonth === selectedMonth);
+      }
+
+      // Se cancelada: apenas se criada no mês selecionado
+      if (o.status === 'cancelado') {
+        return createdMonth === selectedMonth;
+      }
+
+      // Se pendente / em andamento / agendada / orçamento:
+      // Deve aparecer se foi criada no mês OU se foi criada antes e continua aberta neste mês
+      return createdMonth <= selectedMonth;
     });
   }, [orders, selectedMonth]);
 
@@ -144,23 +160,23 @@ export const DashboardView: React.FC = () => {
     ];
 
     const rows = orders.map((o) => [
-      `#${o.code}`,
-      o.status,
-      `"${(o.client?.name || '').replace(/"/g, '""')}"`,
-      `"${o.client?.phone || ''}"`,
-      `"${(o.address || o.client?.address || '').replace(/"/g, '""')}"`,
-      `"${(o.tech?.name || '').replace(/"/g, '""')}"`,
-      Number(o.total_price || 0).toFixed(2),
-      o.payment_method || '',
-      o.warranty_days || 90,
-      o.scheduled_at || '',
-      o.completed_at || '',
-      o.created_at,
+      sanitizeCsvCell(`#${o.code}`),
+      sanitizeCsvCell(o.status),
+      sanitizeCsvCell(o.client?.name || ''),
+      sanitizeCsvCell(o.client?.phone || ''),
+      sanitizeCsvCell(o.address || o.client?.address || ''),
+      sanitizeCsvCell(o.tech?.name || ''),
+      sanitizeCsvCell(Number(o.total_price || 0).toFixed(2)),
+      sanitizeCsvCell(o.payment_method || ''),
+      sanitizeCsvCell(o.warranty_days || 90),
+      sanitizeCsvCell(o.scheduled_at || ''),
+      sanitizeCsvCell(o.completed_at || ''),
+      sanitizeCsvCell(o.created_at),
     ]);
 
     const csvContent =
       'data:text/csv;charset=utf-8,\uFEFF' +
-      [headers.join(';'), ...rows.map((e) => e.join(';'))].join('\n');
+      [headers.map((h) => sanitizeCsvCell(h)).join(';'), ...rows.map((e) => e.join(';'))].join('\n');
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
