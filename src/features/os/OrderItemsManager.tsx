@@ -46,8 +46,9 @@ export const OrderItemsManager: React.FC<OrderItemsManagerProps> = ({
     }
   };
 
-  const handleAddItem = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddItem = (e?: React.SyntheticEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     if (!name.trim() || quantity <= 0) return;
 
     const newItem: Omit<OrderItem, 'id' | 'order_id'> = {
@@ -68,12 +69,26 @@ export const OrderItemsManager: React.FC<OrderItemsManagerProps> = ({
     setShowAddForm(false);
   };
 
-  const handleRemoveItem = (index: number) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      handleAddItem(e);
+    }
+  };
+
+  const handleRemoveItem = (index: number, e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     if (disabled) return;
     onChange(items.filter((_, i) => i !== index));
   };
 
   const totalCost = items.reduce((acc, it) => acc + it.quantity * it.unit_cost, 0);
+
+  const isFormValid =
+    (source === 'estoque' ? Boolean(selectedMaterialId) : Boolean(name.trim())) &&
+    quantity > 0;
 
   return (
     <div className="space-y-3">
@@ -90,7 +105,11 @@ export const OrderItemsManager: React.FC<OrderItemsManagerProps> = ({
         {!disabled && !showAddForm && (
           <button
             type="button"
-            onClick={() => setShowAddForm(true)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowAddForm(true);
+            }}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-industrial-800 text-white text-xs font-bold hover:bg-industrial-700 active:scale-95 shadow-xs"
           >
             <Plus className="w-4 h-4" />
@@ -99,10 +118,9 @@ export const OrderItemsManager: React.FC<OrderItemsManagerProps> = ({
         )}
       </div>
 
-      {/* Add Item Modal / Inline Card */}
+      {/* Add Item Card - Must be <div>, NEVER <form>, to avoid nested form submission bug */}
       {showAddForm && (
-        <form
-          onSubmit={handleAddItem}
+        <div
           className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-2xl space-y-3 animate-in fade-in duration-150"
         >
           <div className="flex items-center justify-between">
@@ -113,7 +131,9 @@ export const OrderItemsManager: React.FC<OrderItemsManagerProps> = ({
             <div className="flex bg-white rounded-lg p-0.5 border border-blue-200">
               <button
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   setSource('estoque');
                   setName('');
                   setSelectedMaterialId('');
@@ -128,7 +148,9 @@ export const OrderItemsManager: React.FC<OrderItemsManagerProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   setSource('comprado');
                   setSelectedMaterialId('');
                 }}
@@ -151,7 +173,7 @@ export const OrderItemsManager: React.FC<OrderItemsManagerProps> = ({
               <select
                 value={selectedMaterialId}
                 onChange={(e) => handleMaterialChange(e.target.value)}
-                required
+                onKeyDown={handleKeyDown}
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
               >
                 <option value="">Selecione um item disponível...</option>
@@ -172,7 +194,7 @@ export const OrderItemsManager: React.FC<OrderItemsManagerProps> = ({
                 placeholder="Ex: Fita veda rosca tigre 18mm"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                required
+                onKeyDown={handleKeyDown}
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
               />
             </div>
@@ -189,7 +211,7 @@ export const OrderItemsManager: React.FC<OrderItemsManagerProps> = ({
                 min="0.1"
                 value={quantity}
                 onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
-                required
+                onKeyDown={handleKeyDown}
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
               />
             </div>
@@ -204,6 +226,7 @@ export const OrderItemsManager: React.FC<OrderItemsManagerProps> = ({
                 min="0"
                 value={unitCost}
                 onChange={(e) => setUnitCost(parseFloat(e.target.value) || 0)}
+                onKeyDown={handleKeyDown}
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
               />
             </div>
@@ -212,19 +235,29 @@ export const OrderItemsManager: React.FC<OrderItemsManagerProps> = ({
           <div className="flex justify-end gap-2 pt-1">
             <button
               type="button"
-              onClick={() => setShowAddForm(false)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowAddForm(false);
+              }}
               className="px-3 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200"
             >
               Cancelar
             </button>
             <button
-              type="submit"
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-industrial-800 text-white hover:bg-industrial-700 active:scale-95 shadow-xs"
+              type="button"
+              onClick={handleAddItem}
+              disabled={!isFormValid}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-xs ${
+                isFormValid
+                  ? 'bg-industrial-800 text-white hover:bg-industrial-700 active:scale-95'
+                  : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+              }`}
             >
               Confirmar Peça
             </button>
           </div>
-        </form>
+        </div>
       )}
 
       {/* Items List */}
@@ -274,7 +307,7 @@ export const OrderItemsManager: React.FC<OrderItemsManagerProps> = ({
               {!disabled && (
                 <button
                   type="button"
-                  onClick={() => handleRemoveItem(idx)}
+                  onClick={(e) => handleRemoveItem(idx, e)}
                   aria-label="Remover peça da OS"
                   className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 active:scale-90 transition-colors"
                   title="Remover peça"

@@ -80,6 +80,8 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
 
   // Populate data when editing
   useEffect(() => {
+    if (!isOpen) return;
+
     if (orderToEdit) {
       setClientId(orderToEdit.client_id || '');
       setTechId(orderToEdit.tech_id || '');
@@ -137,7 +139,7 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
       setItems([]);
       setIsQuickClient(false);
     }
-  }, [orderToEdit, currentProfile, isOpen]);
+  }, [orderToEdit?.id, isOpen]);
 
   // When client changes, auto-fill address if empty
   const handleClientSelect = (cId: string) => {
@@ -149,7 +151,12 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
   };
 
   // Quick helper to append service catalog item into description & price
-  const handleAddCatalogService = (catalogItem: ServiceCatalogItem) => {
+  const handleAddCatalogService = (
+    catalogItem: ServiceCatalogItem,
+    e?: React.MouseEvent
+  ) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     const updatedDesc = description
       ? `${description}\n• ${catalogItem.title}`
       : `• ${catalogItem.title}`;
@@ -283,7 +290,11 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
             aria-label="Fechar formulário de OS"
             className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-industrial-800 text-slate-300 hover:text-white active:scale-95 transition-colors"
           >
@@ -341,7 +352,11 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
               </span>
               <button
                 type="button"
-                onClick={() => setIsQuickClient(!isQuickClient)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsQuickClient(!isQuickClient);
+                }}
                 className="flex items-center gap-1 text-xs font-bold text-industrial-800 hover:text-industrial-600 p-1 rounded-md"
               >
                 <UserPlus className="w-4 h-4" />
@@ -423,7 +438,7 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
                   <button
                     key={cat.id}
                     type="button"
-                    onClick={() => handleAddCatalogService(cat)}
+                    onClick={(e) => handleAddCatalogService(cat, e)}
                     className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-100 border border-slate-200 text-xs font-semibold text-slate-700 hover:text-industrial-900 active:scale-95 transition-all"
                   >
                     + {cat.title} (R$ {Number(cat.default_price).toFixed(0)})
@@ -568,7 +583,11 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
           <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3 sticky bottom-0 bg-white py-3">
             <button
               type="button"
-              onClick={onClose}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }}
               className="px-4 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-100 active:scale-95 transition-all"
             >
               Cancelar

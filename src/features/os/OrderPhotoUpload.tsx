@@ -121,7 +121,11 @@ export const OrderPhotoUpload: React.FC<OrderPhotoUploadProps> = ({
               {!disabled && (
                 <button
                   type="button"
-                  onClick={() => handleRemovePhoto(idx)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleRemovePhoto(idx);
+                  }}
                   aria-label="Excluir foto"
                   className="min-h-[44px] min-w-[44px] p-2.5 rounded-lg bg-rose-600 text-white hover:bg-rose-700 active:scale-90 flex items-center justify-center transition-all shadow-xs"
                   title="Excluir foto"
@@ -135,7 +139,11 @@ export const OrderPhotoUpload: React.FC<OrderPhotoUploadProps> = ({
             {!disabled && (
               <button
                 type="button"
-                onClick={() => handleRemovePhoto(idx)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleRemovePhoto(idx);
+                }}
                 aria-label="Excluir foto"
                 className="sm:hidden absolute top-1 right-1 min-h-[44px] min-w-[44px] p-2.5 rounded-full bg-rose-600 text-white shadow-md active:scale-90 flex items-center justify-center"
               >
