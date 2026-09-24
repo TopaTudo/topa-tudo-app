@@ -44,7 +44,6 @@ import {
   Check,
   RotateCcw,
   Receipt,
-  Sparkles,
   Edit2,
 } from 'lucide-react';
 import { ThermalReceiptModal } from './ThermalReceiptModal';
@@ -727,16 +726,6 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                 <Printer className="w-4 h-4 text-industrial-800" />
                 <span>Imprimir / PDF</span>
               </button>
-
-              <button
-                type="button"
-                onClick={() => setShowThermalReceiptModal(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-950 font-bold text-xs sm:text-sm active:scale-95 transition-all shadow-xs"
-                title="Gerar e compartilhar Cupom Térmico (Foto)"
-              >
-                <Receipt className="w-4 h-4 text-amber-700" />
-                <span>Recibo Cupom (Foto)</span>
-              </button>
             </div>
 
             {order.status !== 'concluido' ? (
@@ -761,10 +750,10 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                     setThermalInitialPhone(undefined);
                     setShowThermalReceiptModal(true);
                   }}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-700/25 active:scale-95 transition-all"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-industrial-950 font-black text-xs sm:text-sm shadow-md shadow-amber-500/25 transition-all"
                   title="Enviar Foto do Cupom Térmico no WhatsApp"
                 >
-                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <Receipt className="w-4 h-4 text-industrial-950" />
                   <span>Cupom Térmico (Foto)</span>
                 </button>
                 <button
@@ -850,10 +839,10 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                   setThermalInitialPhone(undefined);
                   setShowThermalReceiptModal(true);
                 }}
-                className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black text-sm shadow-lg shadow-emerald-600/30 transition-all min-h-[48px]"
+                className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-industrial-950 font-black text-sm shadow-lg shadow-amber-500/25 transition-all min-h-[48px]"
               >
-                <Sparkles className="w-5 h-5 text-amber-300" />
-                <span>Enviar Foto do Recibo (Cupom)</span>
+                <Receipt className="w-5 h-5 text-industrial-950" />
+                <span>Enviar Foto do Cupom Térmico</span>
               </button>
 
               <button
@@ -1092,10 +1081,10 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                   setThermalInitialPhone(alternativePhone);
                   setShowThermalReceiptModal(true);
                 }}
-                className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-sm shadow-md shadow-emerald-700/25 transition-all min-h-[48px]"
+                className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-industrial-950 font-black text-sm shadow-md shadow-amber-500/25 transition-all min-h-[48px]"
               >
-                <Sparkles className="w-4 h-4 text-amber-300" />
-                <span>Enviar Foto do Recibo (Cupom)</span>
+                <Receipt className="w-4 h-4 text-industrial-950" />
+                <span>Enviar Foto do Cupom Térmico</span>
               </button>
 
               <button
