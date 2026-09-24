@@ -93,11 +93,11 @@ export const EstoqueScreen: React.FC = () => {
       if (categoryFilter !== 'Todas' && item.category !== categoryFilter) return false;
 
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const nameMatch = item.name.toLowerCase().includes(q);
-        const codeMatch = item.code?.toLowerCase().includes(q) || false;
-        const catMatch = item.category?.toLowerCase().includes(q) || false;
-        const supMatch = item.supplier?.toLowerCase().includes(q) || false;
+        const q = searchQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const nameMatch = item.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q);
+        const codeMatch = item.code?.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q) || false;
+        const catMatch = item.category?.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q) || false;
+        const supMatch = item.supplier?.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q) || false;
         return nameMatch || codeMatch || catMatch || supMatch;
       }
 
