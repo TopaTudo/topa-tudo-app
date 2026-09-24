@@ -1,9 +1,14 @@
 import QRCode from 'qrcode';
 
-export const PIX_CNPJ_RAW = '17411775000152';
-export const PIX_CNPJ_FORMATTED = '17.411.775/0001-52';
-export const PIX_MERCHANT_NAME = 'TOPA TUDO MANUTENCAO';
+export const PIX_KEY_RAW = '59d30911-a07d-407c-8153-71ca25a9de68';
+export const PIX_KEY_FORMATTED = '59d30911-a07d-407c-8153-71ca25a9de68';
+export const PIX_KEY_NAME = 'Chave Aleatória (EVP)';
+export const PIX_MERCHANT_NAME = 'AGRIPINO ONOFRE DE PAIVA';
 export const PIX_MERCHANT_CITY = 'BRASIL';
+
+// Aliases para compatibilidade reversa
+export const PIX_CNPJ_RAW = PIX_KEY_RAW;
+export const PIX_CNPJ_FORMATTED = PIX_KEY_FORMATTED;
 
 interface PixPayloadOptions {
   key?: string;
@@ -45,6 +50,39 @@ function crc16Ccitt(payload: string): string {
 }
 
 /**
+ * Normaliza e limpa a chave Pix de acordo com seu formato:
+ * - EVP / Chave Aleatória (UUID v4 de 36 caracteres): mantém hífens e formato minúsculo
+ * - E-mail: minúsculo e sem espaços
+ * - Telefone: mantém prefixo internacional se presente (+55...)
+ * - CPF / CNPJ: apenas dígitos numéricos
+ */
+export function cleanPixKey(key: string): string {
+  const trimmed = key.trim();
+  // UUID v4 / EVP (Chave Aleatória de 36 caracteres: 8-4-4-4-12)
+  if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(trimmed)) {
+    return trimmed.toLowerCase();
+  }
+  // E-mail
+  if (trimmed.includes('@')) {
+    return trimmed.toLowerCase();
+  }
+  // Telefone celular com código do país (ex: +5511999998888)
+  if (trimmed.startsWith('+')) {
+    return `+${trimmed.slice(1).replace(/\D/g, '')}`;
+  }
+  // CPF (11 dígitos formatados) ou CNPJ (14 dígitos formatados)
+  if (/^\d{3}\.\d{3}\.\d{3}-\d{2}$|^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/.test(trimmed)) {
+    return trimmed.replace(/\D/g, '');
+  }
+  // Se for apenas dígitos (CPF/CNPJ sem pontuação)
+  if (/^\d+$/.test(trimmed)) {
+    return trimmed;
+  }
+  // Fallback seguro: se contiver caracteres alfanuméricos/hífens
+  return trimmed;
+}
+
+/**
  * Remove acentos e caracteres especiais para compatibilidade com o padrão EMV.
  */
 function sanitizeEmvString(str: string, maxLen: number): string {
@@ -61,7 +99,7 @@ function sanitizeEmvString(str: string, maxLen: number): string {
  * Gera o payload oficial do PIX ("Pix Copia e Cola" - BR Code EMV)
  */
 export function generatePixPayload(options: PixPayloadOptions = {}): string {
-  const rawKey = (options.key || PIX_CNPJ_RAW).replace(/\D/g, '');
+  const rawKey = cleanPixKey(options.key || PIX_KEY_RAW);
   const merchantName = sanitizeEmvString(options.name || PIX_MERCHANT_NAME, 25);
   const merchantCity = sanitizeEmvString(options.city || PIX_MERCHANT_CITY, 15);
   const rawTxid = options.txid ? options.txid.replace(/[^a-zA-Z0-9]/g, '').substring(0, 25) : '***';

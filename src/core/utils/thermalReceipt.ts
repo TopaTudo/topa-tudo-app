@@ -2,7 +2,7 @@ import QRCode from 'qrcode';
 import type { Order, OrderItem, Client, Profile } from '@/core/types/database';
 import { formatLocalDateTime } from '@/core/utils/date';
 import { formatPaymentMethodLabel, calculateWarrantyEndDate } from '@/core/utils/whatsappReceipt';
-import { PIX_CNPJ_FORMATTED, generatePixPayload } from '@/core/utils/pix';
+import { PIX_KEY_FORMATTED, generatePixPayload } from '@/core/utils/pix';
 import { TOPA_TUDO_EMBLEM_DARK_PATH, TOPA_TUDO_EMBLEM_YELLOW_PATH } from '@/core/ui/Logo';
 
 export interface GeneratedThermalReceipt {
@@ -363,7 +363,7 @@ export async function generateThermalReceiptBlob(
   estHeight += 16; // Divisor
 
   // Bloco PIX com QR Code
-  estHeight += 34; // Título PIX e chave
+  estHeight += 48; // Título PIX, chave e favorecido
   estHeight += 225; // QR Code e legenda
   estHeight += 16; // Divisor
 
@@ -583,9 +583,13 @@ export async function generateThermalReceiptBlob(
   ctx.fillText('PAGAMENTO INSTANTÂNEO PIX', centerX, curY);
   curY += 16;
 
-  ctx.font = `600 12px ${FONT_MONO}`;
-  ctx.fillText(`CHAVE CNPJ: ${PIX_CNPJ_FORMATTED}`, centerX, curY);
+  ctx.font = `600 11px ${FONT_MONO}`;
+  ctx.fillText(`CHAVE PIX: ${PIX_KEY_FORMATTED}`, centerX, curY);
   curY += 14;
+
+  ctx.font = `700 11px ${FONT_SANS}`;
+  ctx.fillText('FAVORECIDO: AGRIPINO ONOFRE DE PAIVA', centerX, curY);
+  curY += 15;
 
   // Renderizar QR Code pixel a pixel
   if (qrModules) {

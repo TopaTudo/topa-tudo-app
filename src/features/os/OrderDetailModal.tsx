@@ -13,7 +13,7 @@ import {
 } from '@/core/utils/whatsappReceipt';
 import { SignaturePad } from '@/core/ui/SignaturePad';
 import {
-  PIX_CNPJ_FORMATTED,
+  PIX_KEY_FORMATTED,
   generatePixPayload,
   getPixQrCodeSvgSync,
   copyToClipboard,
@@ -276,12 +276,12 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
     }
   };
 
-  // Copiar Chave PIX CNPJ
+  // Copiar Chave PIX
   const handleCopyPixKey = async () => {
-    const ok = await copyToClipboard(PIX_CNPJ_FORMATTED);
+    const ok = await copyToClipboard(PIX_KEY_FORMATTED);
     if (ok) {
       setCopiedPixKey(true);
-      success('Chave PIX copiada!', PIX_CNPJ_FORMATTED);
+      success('Chave PIX copiada!', PIX_KEY_FORMATTED);
       setTimeout(() => setCopiedPixKey(false), 2500);
     } else {
       toastError('Erro ao copiar', 'Não foi possível copiar a chave PIX.');
@@ -564,11 +564,22 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
 
                 {/* Pix Actions and Keys */}
                 <div className="flex-1 space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-1 text-xs">
-                    <span className="text-slate-600 font-semibold">Chave CNPJ:</span>
-                    <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded text-[11px]">
-                      {PIX_CNPJ_FORMATTED}
-                    </span>
+                  <div className="space-y-1 text-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-1">
+                      <span className="text-slate-600 font-semibold">Favorecido:</span>
+                      <span className="font-semibold text-slate-800">
+                        Agripino Onofre de Paiva
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-1">
+                      <span className="text-slate-600 font-semibold">Chave PIX:</span>
+                      <span
+                        className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded text-[11px] truncate max-w-[210px] sm:max-w-none"
+                        title={PIX_KEY_FORMATTED}
+                      >
+                        {PIX_KEY_FORMATTED}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
@@ -585,7 +596,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                       ) : (
                         <>
                           <Copy className="w-3.5 h-3.5" />
-                          <span>Copiar Chave CNPJ</span>
+                          <span>Copiar Chave PIX</span>
                         </>
                       )}
                     </button>
@@ -945,24 +956,58 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
               </p>
             </div>
 
+            {/* Dados do Favorecido e Chave PIX */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-xs space-y-1.5 text-left">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-slate-500 font-medium">Favorecido:</span>
+                <span className="font-semibold text-slate-800">Agripino Onofre de Paiva</span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-slate-500 font-medium">Chave PIX:</span>
+                <span className="font-mono font-bold text-[11px] text-slate-900 bg-white p-1.5 rounded border border-slate-200 break-all select-all">
+                  {PIX_KEY_FORMATTED}
+                </span>
+              </div>
+            </div>
+
             <div className="space-y-2 pt-2">
-              <button
-                type="button"
-                onClick={handleCopyPixCode}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs shadow-md transition-all min-h-[44px]"
-              >
-                {copiedPixCode ? (
-                  <>
-                    <Check className="w-4 h-4" />
-                    <span>Código Pix Copiado!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-4 h-4" />
-                    <span>Copiar Pix Copia e Cola</span>
-                  </>
-                )}
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyPixKey}
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-900 font-bold text-xs active:scale-95 transition-all min-h-[42px]"
+                >
+                  {copiedPixKey ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Copiada!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copiar Chave</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCopyPixCode}
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs shadow-md transition-all min-h-[42px]"
+                >
+                  {copiedPixCode ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Copiado!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copia e Cola</span>
+                    </>
+                  )}
+                </button>
+              </div>
 
               <button
                 type="button"

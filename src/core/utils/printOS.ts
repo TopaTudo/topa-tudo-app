@@ -3,7 +3,7 @@ import { formatLocalDateTime } from '@/core/utils/date';
 import { formatBRL } from '@/core/utils/currency';
 import { formatPaymentMethodLabel, calculateWarrantyEndDate } from '@/core/utils/whatsappReceipt';
 import { getLogoSvgRaw } from '@/core/ui/Logo';
-import { PIX_CNPJ_FORMATTED, generatePixPayload, getPixQrCodeSvgSync } from '@/core/utils/pix';
+import { PIX_KEY_FORMATTED, generatePixPayload, getPixQrCodeSvgSync } from '@/core/utils/pix';
 
 function escapeHtml(str?: string | null): string {
   if (!str) return '';
@@ -731,7 +731,7 @@ export function generateOrderPrintHTML(order: Order, items: OrderItem[] = []): s
           <span>⚡</span> PAGAMENTO INSTANTÂNEO VIA PIX
         </div>
         <div class="pix-sub">Aponte a câmera do seu celular ou aplicativo bancário para pagar agora</div>
-        <div class="pix-field"><strong>Chave CNPJ:</strong> <span>17.411.775/0001-52</span> • <strong>Beneficiário:</strong> <span>TOPA TUDO MANUTENCAO</span></div>
+        <div class="pix-field"><strong>Chave PIX:</strong> <span>${PIX_KEY_FORMATTED}</span> • <strong>Favorecido:</strong> <span>Agripino Onofre de Paiva</span></div>
         <div class="pix-field"><strong>Valor da OS:</strong> <span class="pix-amount">${totalPriceFormatted}</span></div>
         <div class="pix-copy-paste">${escapeHtml(pixCode)}</div>
       </div>

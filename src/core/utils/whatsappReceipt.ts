@@ -1,6 +1,6 @@
 import type { Order, Client, Profile, OrderItem } from '@/core/types/database';
 import { formatLocalDateTime } from '@/core/utils/date';
-import { PIX_CNPJ_FORMATTED, generatePixPayload } from '@/core/utils/pix';
+import { PIX_KEY_FORMATTED, generatePixPayload } from '@/core/utils/pix';
 
 /**
  * Mapeia a forma de pagamento cadastrada para um rótulo legível e profissional.
@@ -187,8 +187,8 @@ export function generateReceiptMessage(
 
     lines.push('');
     lines.push('⚡ *DADOS PARA PAGAMENTO VIA PIX:*');
-    lines.push(`🔑 *Chave CNPJ:* \`${PIX_CNPJ_FORMATTED}\``);
-    lines.push('🏢 *Beneficiário:* Topa Tudo Manutenção');
+    lines.push(`🔑 *Chave PIX:* \`${PIX_KEY_FORMATTED}\``);
+    lines.push('🏢 *Favorecido:* Agripino Onofre de Paiva');
     lines.push(`💵 *Valor:* R$ ${totalPrice}`);
     lines.push('');
     lines.push('📋 *Pix Copia e Cola:*');
