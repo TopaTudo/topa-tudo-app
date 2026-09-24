@@ -200,7 +200,7 @@ function drawSerratedPaperPath(
 /**
  * Desenha o Logotipo Monocromático da Topa Tudo estilo impressão térmica
  */
-function drawThermalLogo(ctx: CanvasRenderingContext2D, centerX: number, topY: number): number {
+function drawThermalLogo(ctx: CanvasRenderingContext2D, centerX: number, topY: number, isPrazo: boolean): number {
   let y = topY;
   ctx.save();
 
@@ -240,12 +240,12 @@ function drawThermalLogo(ctx: CanvasRenderingContext2D, centerX: number, topY: n
   ctx.fillText('CNPJ: 17.411.775/0001-52', centerX, y);
   y += 16;
 
-  ctx.fillText('TEL / WHATSAPP: (84) 99999-9999', centerX, y);
+  ctx.fillText('TEL / WHATSAPP: (77) 99987-7314', centerX, y);
   y += 18;
 
-  // Caixa de destaque: COMPROVANTE DE PRESTAÇÃO DE SERVIÇOS
+  // Caixa de destaque
   ctx.font = `700 13px ${FONT_SANS}`;
-  const badgeText = 'COMPROVANTE DE PRESTAÇÃO DE SERVIÇOS';
+  const badgeText = isPrazo ? 'DUPLICATA DE PRESTAÇÃO DE SERVIÇOS' : 'COMPROVANTE DE PRESTAÇÃO DE SERVIÇOS';
   const badgeW = ctx.measureText(badgeText).width + 28;
   const badgeH = 26;
   ctx.fillStyle = '#0a0a0a';
@@ -318,6 +318,9 @@ export async function generateThermalReceiptBlob(
   const paymentMethodLabel = formatPaymentMethodLabel(order.payment_method).toUpperCase();
   const warrantyDays = order.warranty_days ?? 90;
   const warrantyEndDate = calculateWarrantyEndDate(order.completed_at || order.created_at, warrantyDays);
+
+  const dueDate = order.due_date ? new Date(order.due_date).toLocaleDateString('pt-BR') : '---';
+  const isPrazo = order.payment_method === 'prazo';
 
   // Cálculos de totais
   let totalMaterials = 0;
@@ -423,7 +426,7 @@ export async function generateThermalReceiptBlob(
   let curY = 16;
 
   // 2. Renderizar Logotipo e Cabeçalho
-  curY = drawThermalLogo(ctx, centerX, curY);
+  curY = drawThermalLogo(ctx, centerX, curY, isPrazo);
 
   // Divisor
   curY = drawLine(curY);
@@ -433,6 +436,20 @@ export async function generateThermalReceiptBlob(
   ctx.fillStyle = '#0a0a0a';
   ctx.font = `800 17px ${FONT_SANS}`;
   ctx.fillText(`ORDEM DE SERVIÇO: #${codeFormatted}`, marginX, curY);
+  curY += 20;
+
+  if (isPrazo) {
+    ctx.save();
+    ctx.strokeStyle = '#0a0a0a';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(marginX, curY, contentWidth, 40);
+    ctx.font = `700 13px ${FONT_SANS}`;
+    ctx.fillText('MODALIDADE: A PRAZO (DUPLICATA)', marginX + 10, curY + 15);
+    ctx.fillText(`VENCIMENTO: ${dueDate}`, marginX + 10, curY + 30);
+    ctx.restore();
+    curY += 50;
+  }
+
   ctx.textAlign = 'right';
   ctx.font = `700 14px ${FONT_SANS}`;
   ctx.fillText('STATUS: CONCLUÍDO', logicalWidth - marginX, curY);

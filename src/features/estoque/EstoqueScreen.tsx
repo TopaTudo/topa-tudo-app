@@ -28,7 +28,13 @@ export const EstoqueScreen: React.FC = () => {
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('Todas');
   const [filterMode, setFilterMode] = useState<'todos' | 'criticos' | 'disponiveis'>('todos');
+
+  const categories = useMemo(() => {
+    const cats = new Set(stockList.map(item => item.category).filter(Boolean) as string[]);
+    return ['Todas', ...Array.from(cats).sort()];
+  }, [stockList]);
 
   // Modal State: Movement (Entrada / Saída Avulsa)
   const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
@@ -84,17 +90,20 @@ export const EstoqueScreen: React.FC = () => {
       if (filterMode === 'criticos' && !isCritical) return false;
       if (filterMode === 'disponiveis' && Number(item.saldo_atual) <= 0) return false;
 
+      if (categoryFilter !== 'Todas' && item.category !== categoryFilter) return false;
+
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const nameMatch = item.name.toLowerCase().includes(q);
         const codeMatch = item.code?.toLowerCase().includes(q) || false;
         const catMatch = item.category?.toLowerCase().includes(q) || false;
-        return nameMatch || codeMatch || catMatch;
+        const supMatch = item.supplier?.toLowerCase().includes(q) || false;
+        return nameMatch || codeMatch || catMatch || supMatch;
       }
 
       return true;
     });
-  }, [stockList, filterMode, searchQuery]);
+  }, [stockList, filterMode, searchQuery, categoryFilter]);
 
   // Handle Quick Movement (Entrada / Saída)
   const handleOpenMovement = (item: InventoryStockView, type: 'entrada' | 'saida') => {
@@ -240,18 +249,38 @@ export const EstoqueScreen: React.FC = () => {
           <Search className="w-5 h-5 text-slate-500 absolute left-3.5 top-3" />
           <input
             type="text"
-            placeholder="Buscar por nome, código ou categoria de material..."
+            placeholder="Buscar por código (ex: MAT-ELE-001), nome do material, fornecedor ou categoria..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-sm font-medium focus:ring-2 focus:ring-industrial-800 focus:outline-hidden"
+            className="w-full pl-11 pr-10 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-sm font-medium focus:ring-2 focus:ring-industrial-800 focus:outline-hidden"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
-        <div className="flex items-center gap-1.5 overflow-x-auto text-xs font-semibold pb-1">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-100 font-semibold text-slate-700 focus:ring-2 focus:ring-industrial-800"
+          >
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+
+          <div className="h-6 w-px bg-slate-200 mx-1" />
+
           <button
             type="button"
             onClick={() => setFilterMode('todos')}
-            className={`px-3 py-1.5 rounded-xl border transition-all active:scale-95 ${
+            className={`px-3 py-1.5 rounded-xl border transition-all active:scale-95 whitespace-nowrap ${
               filterMode === 'todos'
                 ? 'bg-industrial-800 text-white border-industrial-800 shadow-xs'
                 : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
@@ -262,20 +291,20 @@ export const EstoqueScreen: React.FC = () => {
           <button
             type="button"
             onClick={() => setFilterMode('criticos')}
-            className={`px-3 py-1.5 rounded-xl border transition-all active:scale-95 flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-xl border transition-all active:scale-95 flex items-center gap-1 whitespace-nowrap ${
               filterMode === 'criticos'
                 ? 'bg-amberAlert-600 text-white border-amberAlert-600 shadow-xs'
                 : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'
             }`}
           >
             <AlertTriangle className="w-3.5 h-3.5" />
-            Estoque Crítico (
+            Criticos (
             {stockList.filter((i) => Number(i.saldo_atual) <= Number(i.min_stock)).length})
           </button>
           <button
             type="button"
             onClick={() => setFilterMode('disponiveis')}
-            className={`px-3 py-1.5 rounded-xl border transition-all active:scale-95 ${
+            className={`px-3 py-1.5 rounded-xl border transition-all active:scale-95 whitespace-nowrap ${
               filterMode === 'disponiveis'
                 ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
                 : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
@@ -284,6 +313,10 @@ export const EstoqueScreen: React.FC = () => {
             Com Saldo Positivo
           </button>
         </div>
+        
+        <p className="text-xs text-slate-500 font-medium pt-1 px-1">
+          Exibindo {filteredItems.length} de {stockList.length} materiais
+        </p>
       </div>
 
       {/* Materials Cards List */}
@@ -295,8 +328,15 @@ export const EstoqueScreen: React.FC = () => {
       ) : filteredItems.length === 0 ? (
         <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-600">
           <Package className="w-10 h-10 text-slate-500 mx-auto mb-2" />
-          <h3 className="font-bold text-base text-slate-800">Nenhum material cadastrado</h3>
-          <p className="text-xs text-slate-600 mt-1">Toque em "Novo Material" para alimentar o estoque.</p>
+          <h3 className="font-bold text-base text-slate-800">
+            Nenhum material encontrado com o termo '{searchQuery}'
+          </h3>
+          <button
+            onClick={() => { setSearchQuery(''); setCategoryFilter('Todas'); setFilterMode('todos'); }}
+            className="text-sm font-bold text-industrial-800 hover:underline mt-2"
+          >
+            [Limpar busca]
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">

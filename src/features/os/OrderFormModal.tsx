@@ -47,7 +47,8 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
   const [address, setAddress] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [totalPrice, setTotalPrice] = useState<string>('0');
-  const [paymentMethod, setPaymentMethod] = useState<string>('pix');
+  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'prazo'>('pix');
+  const [dueDate, setDueDate] = useState<string>('');
   const [warrantyDays, setWarrantyDays] = useState<number>(90);
   const [scheduledAtDate, setScheduledAtDate] = useState<string>('');
   const [scheduledAtTime, setScheduledAtTime] = useState<string>('');
@@ -60,6 +61,12 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
   const [newClientName, setNewClientName] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
   const [newClientAddress, setNewClientAddress] = useState('');
+
+  const addDaysToDate = (days: number) => {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    return date.toISOString().split('T')[0];
+  };
 
   // Initial load
   useEffect(() => {
@@ -91,7 +98,8 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
       setTotalPrice(
         orderToEdit.total_price != null ? String(orderToEdit.total_price) : '0'
       );
-      setPaymentMethod(orderToEdit.payment_method || 'pix');
+      setPaymentMethod((orderToEdit.payment_method as 'pix' | 'prazo') || 'pix');
+      setDueDate(orderToEdit.due_date || '');
       setWarrantyDays(orderToEdit.warranty_days || 90);
       setPhotosBefore(orderToEdit.photos_before || []);
       setPhotosAfter(orderToEdit.photos_after || []);
@@ -131,6 +139,7 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
       setDescription('');
       setTotalPrice('0');
       setPaymentMethod('pix');
+      setDueDate('');
       setWarrantyDays(90);
       setScheduledAtDate(getLocalDateString());
       setScheduledAtTime('09:00');
@@ -209,6 +218,7 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
         description: description.trim() || null,
         total_price: parseBRLNumber(totalPrice),
         payment_method: paymentMethod,
+        due_date: paymentMethod === 'prazo' ? (dueDate || null) : null,
         warranty_days: Number(warrantyDays) || 90,
         photos_before: photosBefore,
         photos_after: photosAfter,
@@ -533,20 +543,56 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-industrial-900 mb-1">
-                  Forma de Pagamento
+                  Condição de Pagamento
                 </label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl border border-industrial-300 bg-white text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-industrial-800 focus:outline-hidden"
-                >
-                  <option value="pix">PIX Instantâneo</option>
-                  <option value="dinheiro">Dinheiro em Espécie</option>
-                  <option value="cartao_debito">Cartão de Débito</option>
-                  <option value="cartao_credito">Cartão de Crédito</option>
-                  <option value="boleto">Boleto Bancário</option>
-                  <option value="a_combinar">A Combinar / Faturado</option>
-                </select>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('pix')}
+                    className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition-all ${
+                      paymentMethod === 'pix'
+                        ? 'bg-green-600 text-white border-green-600'
+                        : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                    }`}
+                  >
+                    ⚡ PIX (À Vista)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('prazo')}
+                    className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition-all ${
+                      paymentMethod === 'prazo'
+                        ? 'bg-amber-500 text-white border-amber-500'
+                        : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                    }`}
+                  >
+                    🟡 A Prazo (Duplicata)
+                  </button>
+                </div>
+
+                {paymentMethod === 'prazo' && (
+                  <div className="space-y-2 animate-in slide-in-from-top-2">
+                    <input
+                      type="date"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      required
+                      className="w-full px-3 py-2.5 rounded-xl border border-amber-300 bg-white text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-hidden"
+                    />
+                    <div className="flex gap-2">
+                      {[7, 15, 30].map((days) => (
+                        <button
+                          key={days}
+                          type="button"
+                          onClick={() => setDueDate(addDaysToDate(days))}
+                          className="flex-1 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-xs font-bold rounded-lg text-slate-700 transition-colors"
+                        >
+                          +{days} dias
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

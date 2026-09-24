@@ -36,6 +36,9 @@ export function generateOrderPrintHTML(order: Order, items: OrderItem[] = []): s
   const paymentMethodStr = formatPaymentMethodLabel(order.payment_method);
   const totalPriceFormatted = formatBRL(order.total_price);
 
+  const isPrazo = order.payment_method === 'prazo';
+  const dueDateFormatted = order.due_date ? new Date(order.due_date).toLocaleDateString('pt-BR') : '---';
+
   // Geração do Payload e QR Code PIX Oficial
   const pixCode = generatePixPayload({
     amount: Number(order.total_price || 0),
@@ -641,7 +644,7 @@ export function generateOrderPrintHTML(order: Order, items: OrderItem[] = []): s
       </div>
 
       <div class="os-badge-box">
-        <div class="os-number">${codeFormatted}</div>
+        <div class="os-number">${isPrazo ? `DUPLICATA Nº ${codeFormatted}` : codeFormatted}</div>
         <div>
           <span class="status-badge">${statusInfo.label}</span>
         </div>
@@ -652,6 +655,15 @@ export function generateOrderPrintHTML(order: Order, items: OrderItem[] = []): s
         </div>
       </div>
     </header>
+
+    ${isPrazo ? `
+      <div class="card" style="margin-bottom: 12px; border: 2px solid #0f172a; background: #fef9c3;">
+        <div class="card-title" style="color: #854d0e;">Condição de Pagamento</div>
+        <div class="field-value" style="font-size: 14px; color: #854d0e;">
+          CONDIÇÃO: PAGAMENTO A PRAZO • VENCIMENTO DA DUPLICATA: ${dueDateFormatted}
+        </div>
+      </div>
+    ` : ''}
 
     <!-- Dados do Cliente e Técnico -->
     <div class="grid-2">
@@ -795,6 +807,7 @@ export function generateOrderPrintHTML(order: Order, items: OrderItem[] = []): s
             ? 'Assinatura Digital Coletada'
             : 'Assinatura do Cliente / Responsável'
         }</div>
+        ${isPrazo ? `<div class="sig-role" style="font-size: 8.5px; margin-top: 4px; font-style: italic;">Reconheço a exatidão da duplicata de prestação de serviços acima discriminada e prometo pagar seu valor na data de vencimento estipulada.</div>` : ''}
       </div>
 
       <div class="signature-block">
@@ -807,7 +820,7 @@ export function generateOrderPrintHTML(order: Order, items: OrderItem[] = []): s
 
     <!-- Rodapé -->
     <footer class="footer-doc">
-      <span>Topa Tudo • CNPJ: 17.411.775/0001-52 • Sistema de Gestão Operacional</span>
+      <span>Topa Tudo • Tel: (77) 99987-7314 • CNPJ: 17.411.775/0001-52 • Sistema de Gestão Operacional</span>
       <span>Documento gerado em ${formatLocalDateTime(new Date().toISOString())}</span>
     </footer>
   </div>

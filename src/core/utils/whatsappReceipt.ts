@@ -14,6 +14,7 @@ export function formatPaymentMethodLabel(method?: string | null): string {
     cartao_credito: 'Cartão de Crédito',
     boleto: 'Boleto Bancário',
     a_combinar: 'A Combinar / Faturado',
+    prazo: 'Pagamento a Prazo',
   };
   return map[method] || method.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 }
@@ -140,22 +141,25 @@ export function generateReceiptMessage(
   const paymentMethod = formatPaymentMethodLabel(order.payment_method);
   const warrantyDays = order.warranty_days ?? 90;
   const warrantyEndDate = calculateWarrantyEndDate(order.completed_at, warrantyDays);
+  
+  const isPrazo = order.payment_method === 'prazo';
 
   const lines: string[] = [
     '🏠 *TOPA TUDO - MANUTENÇÃO & SERVIÇOS* ✨',
     '_Cuidando do seu patrimônio com excelência e dedicação!_',
     '━━━━━━━━━━━━━━━━━━━━━━━━━',
     '',
-    '📄 *COMPROVANTE DE CONCLUSÃO DE SERVIÇO*',
+    isPrazo ? '📄 *DUPLICATA DE SERVIÇO - TOPA TUDO*' : '📄 *COMPROVANTE DE CONCLUSÃO DE SERVIÇO*',
     '',
     `📋 *Ordem de Serviço:* #${codeFormatted}`,
     `👤 *Cliente:* ${clientName}`,
     `📅 *Data de Conclusão:* ${conclusionDate}`,
-    `👨🔧 *Técnico Responsável:* ${techName}`,
-    '',
-    '🛠️ *Serviço Executado:*',
-    serviceDesc,
   ];
+  if (isPrazo) {
+      lines.push(`📅 *Data de Vencimento:* *${order.due_date ? new Date(order.due_date).toLocaleDateString('pt-BR') : '---'}*`);
+  }
+  lines.push(`👨🔧 *Técnico Responsável:* ${techName}`, '');
+  lines.push('🛠️ *Serviço Executado:*', serviceDesc);
 
   // Materiais e peças aplicadas (exibido apenas se houver itens para não poluir)
   const orderItems = items || [];
@@ -178,7 +182,7 @@ export function generateReceiptMessage(
   }
 
   // Dados do PIX para facilidade de pagamento do cliente
-  const isPixMethod = !order.payment_method || order.payment_method === 'pix';
+  const isPixMethod = !order.payment_method || order.payment_method === 'pix' || isPrazo;
   if (isPixMethod || Number(order.total_price) > 0) {
     const pixPayload = generatePixPayload({
       amount: Number(order.total_price || 0),
@@ -186,7 +190,7 @@ export function generateReceiptMessage(
     });
 
     lines.push('');
-    lines.push('⚡ *DADOS PARA PAGAMENTO VIA PIX:*');
+    lines.push(isPrazo ? '⚡ *INFORMAÇÕES PARA PAGAMENTO VIA PIX:' : '⚡ *DADOS PARA PAGAMENTO VIA PIX:*');
     lines.push(`🔑 *Chave PIX:* \`${PIX_KEY_FORMATTED}\``);
     lines.push('🏢 *Favorecido:* Agripino Onofre de Paiva');
     lines.push(`💵 *Valor:* R$ ${totalPrice}`);
@@ -202,6 +206,7 @@ export function generateReceiptMessage(
   lines.push('Foi um prazer te atender. Se precisar de qualquer suporte ou de um novo serviço, estamos sempre à sua disposição! 📲💬');
   lines.push('');
   lines.push('⭐ *Topa Tudo:* O seu parceiro de confiança para qualquer serviço! 🔧⚡');
+  lines.push('📞 *Contato Oficial:* (77) 99987-7314');
 
   return lines.join('\n');
 }

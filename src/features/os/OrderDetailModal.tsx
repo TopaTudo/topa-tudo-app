@@ -510,11 +510,19 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
               </div>
               <div className="text-right">
                 <span className="text-xs text-blue-300 font-medium block">
-                  Forma de Pagamento
+                  Condição de Pagamento
                 </span>
-                <span className="text-sm font-bold capitalize text-white">
-                  {order.payment_method?.replace('_', ' ') || 'PIX'}
-                </span>
+                <div className="mt-1">
+                  {order.payment_method === 'prazo' ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500 text-industrial-950 font-black text-[11px] shadow-sm uppercase tracking-wider">
+                      <span className="text-xs">📄</span> DUPLICATA A PRAZO • Venc: {order.due_date ? new Date(order.due_date).toLocaleDateString('pt-BR') : '---'}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500 text-white font-black text-[11px] shadow-sm uppercase tracking-wider">
+                      <span className="text-xs">⚡</span> PAGAMENTO: PIX (À VISTA)
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 

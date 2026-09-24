@@ -84,7 +84,8 @@ export interface Order {
   address: string | null;
   description: string | null;
   total_price: number;
-  payment_method: string | null;
+  payment_method?: 'pix' | 'prazo';
+  due_date?: string | null;
   warranty_days: number;
   signature_url?: string | null;
   photos_before: string[];
@@ -114,6 +115,8 @@ export interface Transaction {
   description: string;
   category: string | null;
   status: TransactionStatus;
+  payment_status?: 'pago' | 'pendente';
+  due_date?: string | null;
   order_id: string | null;
   attachment_url: string | null;
   date: string;
