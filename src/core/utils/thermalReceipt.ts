@@ -319,8 +319,12 @@ export async function generateThermalReceiptBlob(
   const warrantyDays = order.warranty_days ?? 90;
   const warrantyEndDate = calculateWarrantyEndDate(order.completed_at || order.created_at, warrantyDays);
 
-  const dueDate = order.due_date ? new Date(order.due_date).toLocaleDateString('pt-BR') : '---';
-  const isPrazo = order.payment_method === 'prazo';
+  const isPrazoOrCombinar = order.payment_method === 'prazo' || order.payment_method === 'a_combinar';
+  
+  // Formatação segura de data (YYYY-MM-DD -> DD/MM/AAAA)
+  const dueDateFormatted = order.due_date 
+    ? order.due_date.split('T')[0].split('-').reverse().join('/') 
+    : 'A COMBINAR';
 
   // Cálculos de totais
   let totalMaterials = 0;
@@ -341,6 +345,7 @@ export async function generateThermalReceiptBlob(
   // Cálculo da altura necessária
   let estHeight = 24; // Top serration & padding
   estHeight += 190; // Logo e cabeçalho
+  if (isPrazoOrCombinar) estHeight += 110; // Banner destaque no topo
   estHeight += 16; // Divisor
   estHeight += 42; // Título OS e emissão
   estHeight += 16; // Divisor
@@ -362,6 +367,7 @@ export async function generateThermalReceiptBlob(
   }
 
   estHeight += 42; // Total Geral em destaque
+  if (isPrazoOrCombinar) estHeight += 40; // Destaque extra no total
   estHeight += 22; // Forma de pagamento
   estHeight += 16; // Divisor
 
@@ -426,7 +432,7 @@ export async function generateThermalReceiptBlob(
   let curY = 16;
 
   // 2. Renderizar Logotipo e Cabeçalho
-  curY = drawThermalLogo(ctx, centerX, curY, isPrazo);
+  curY = drawThermalLogo(ctx, centerX, curY, isPrazoOrCombinar);
 
   // Divisor
   curY = drawLine(curY);
@@ -436,21 +442,35 @@ export async function generateThermalReceiptBlob(
   ctx.fillStyle = '#0a0a0a';
   ctx.font = `800 17px ${FONT_SANS}`;
   ctx.fillText(`ORDEM DE SERVIÇO: #${codeFormatted}`, marginX, curY);
-  curY += 20;
+  curY += 24;
 
-  if (isPrazo) {
-    ctx.save();
-    ctx.strokeStyle = '#0a0a0a';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(marginX, curY, contentWidth, 40);
+  if (isPrazoOrCombinar) {
+    // Banner de Alto Contraste (Topo)
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(marginX, curY, contentWidth, 24);
+    ctx.fillStyle = '#ffffff';
     ctx.font = `700 13px ${FONT_SANS}`;
-    ctx.fillText('MODALIDADE: A PRAZO (DUPLICATA)', marginX + 10, curY + 15);
-    ctx.fillText(`VENCIMENTO: ${dueDate}`, marginX + 10, curY + 30);
-    ctx.restore();
-    curY += 50;
+    ctx.fillText('DUPLICATA A PRAZO — DATA DE VENCIMENTO', marginX + 10, curY + 12);
+    curY += 24;
+
+    ctx.fillStyle = '#fef3c7';
+    ctx.fillRect(marginX, curY, contentWidth, 54);
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(marginX, curY, contentWidth, 54);
+
+    ctx.fillStyle = '#0a0a0a';
+    ctx.textAlign = 'center';
+    ctx.font = `800 26px ${FONT_MONO}`;
+    ctx.fillText(`VENCIMENTO: ${dueDateFormatted}`, centerX, curY + 28);
+    
+    ctx.font = `700 12px ${FONT_SANS}`;
+    ctx.fillText('PAGAMENTO ATÉ A DATA ACIMA VIA PIX ABAIXO', centerX, curY + 45);
+    curY += 60;
   }
 
   ctx.textAlign = 'right';
+  ctx.fillStyle = '#0a0a0a';
   ctx.font = `700 14px ${FONT_SANS}`;
   ctx.fillText('STATUS: CONCLUÍDO', logicalWidth - marginX, curY);
   curY += 20;
@@ -581,6 +601,16 @@ export async function generateThermalReceiptBlob(
   ctx.fillText(`R$ ${formatMoney(totalGeral)}`, logicalWidth - marginX - 14, curY + 2);
   ctx.restore();
   curY += 34;
+
+  if (isPrazoOrCombinar) {
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(marginX, curY, contentWidth, 30);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.font = `700 16px ${FONT_SANS}`;
+    ctx.fillText(`VENCIMENTO DA DUPLICATA: ${dueDateFormatted}`, centerX, curY + 16);
+    curY += 36;
+  }
 
   // Forma de pagamento
   ctx.fillStyle = '#0a0a0a';
