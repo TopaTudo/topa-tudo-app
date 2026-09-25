@@ -267,6 +267,40 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
         if (itemsErr) throw itemsErr;
       }
 
+      // Sincronização automática bidirecional com a Agenda (schedule)
+      if (savedOrderId && scheduledAtDate && finalClientId) {
+        try {
+          const schedulePayload = {
+            date: scheduledAtDate,
+            start_time: scheduledAtTime || '09:00',
+            client_id: finalClientId,
+            tech_id: techId || null,
+            description: description.trim() || 'Visita técnica agendada',
+            status: status === 'concluido' ? 'concluido' : 'agendado',
+            order_id: savedOrderId,
+          };
+
+          const { data: existingSched } = await supabase
+            .from('schedule')
+            .select('id')
+            .eq('order_id', savedOrderId)
+            .maybeSingle();
+
+          if (existingSched) {
+            await supabase
+              .from('schedule')
+              .update(schedulePayload)
+              .eq('id', existingSched.id);
+          } else if (status === 'agendado' || scheduledAtDate) {
+            await supabase
+              .from('schedule')
+              .insert(schedulePayload);
+          }
+        } catch (schedSyncErr) {
+          console.warn('Falha na sincronização não-bloqueante com a agenda:', schedSyncErr);
+        }
+      }
+
       success(
         orderToEdit
           ? `OS #${orderToEdit.code} atualizada com sucesso!`

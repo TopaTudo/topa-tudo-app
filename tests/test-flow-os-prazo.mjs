@@ -149,13 +149,68 @@ async function runTest() {
     due_date: txCombinar.due_date,
   });
 
-  // 7. Limpeza completa
+  // 7. Testar Sincronização Automática entre Agenda e OS
+  console.log('--- Testando Sincronização Agenda <-> OS ---');
+  const { data: syncOrder, error: syncOrderErr } = await supabase
+    .from('orders')
+    .insert({
+      client_id: client.id,
+      description: 'OS Sincronizada da Agenda',
+      total_price: 180.0,
+      payment_method: 'pix',
+      status: 'agendado',
+      scheduled_at: `${due_date_str}T09:00:00Z`
+    })
+    .select()
+    .single();
+  if (syncOrderErr) throw syncOrderErr;
+
+  const { data: syncSchedule, error: syncSchedErr } = await supabase
+    .from('schedule')
+    .insert({
+      date: due_date_str,
+      start_time: '09:00',
+      client_id: client.id,
+      description: 'Visita técnica sincronizada',
+      status: 'agendado',
+      order_id: syncOrder.id
+    })
+    .select('*, order:orders(*)')
+    .single();
+  if (syncSchedErr) throw syncSchedErr;
+
+  if (syncSchedule.order_id !== syncOrder.id || syncSchedule.order?.id !== syncOrder.id) {
+    throw new Error('Falha no vínculo entre schedule e order');
+  }
+  console.log(`✅ Agendamento vinculado à OS #${syncOrder.code} com sucesso.`);
+
+  // Concluir a OS e verificar se o agendamento sincronizou para 'concluido'
+  const { error: rpcSyncErr } = await supabase.rpc('complete_work_order', {
+    p_order_id: syncOrder.id
+  });
+  if (rpcSyncErr) throw rpcSyncErr;
+
+  const { data: schedAfterConclusion } = await supabase
+    .from('schedule')
+    .select('*')
+    .eq('id', syncSchedule.id)
+    .single();
+
+  if (schedAfterConclusion.status !== 'concluido') {
+    throw new Error(`Status da agenda não foi sincronizado para concluído: ${schedAfterConclusion.status}`);
+  }
+  console.log('✅ Conclusão da OS sincronizou o status do agendamento para "concluido" automaticamente via RPC.');
+
+  // 8. Limpeza completa
+  await supabase.from('schedule').delete().eq('id', syncSchedule.id);
   await supabase.from('inventory_movements').delete().eq('order_id', orderPrazo.id);
   await supabase.from('transactions').delete().eq('order_id', orderPrazo.id);
   await supabase.from('transactions').delete().eq('order_id', orderCombinar.id);
+  await supabase.from('transactions').delete().eq('order_id', syncOrder.id);
   await supabase.from('order_items').delete().eq('order_id', orderPrazo.id);
   await supabase.from('orders').delete().eq('id', orderPrazo.id);
   await supabase.from('orders').delete().eq('id', orderCombinar.id);
+  await supabase.from('orders').delete().eq('id', syncOrder.id);
   await supabase.from('inventory').delete().eq('id', material.id);
   await supabase.from('clients').delete().eq('id', client.id);
 

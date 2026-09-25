@@ -143,12 +143,14 @@ export interface ScheduleItem {
   end_time: string | null;
   client_id: string;
   tech_id: string | null;
+  order_id?: string | null;
   description: string | null;
   status: string;
   created_at: string;
   // joined fields
   client?: Client;
   tech?: Profile;
+  order?: Order;
 }
 
 export interface CompleteOrderResult {
