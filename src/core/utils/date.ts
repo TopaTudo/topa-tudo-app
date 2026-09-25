@@ -53,6 +53,25 @@ export function formatLocalDateTime(isoString?: string | null): string {
 }
 
 /**
+ * Formata uma string de data YYYY-MM-DD (ou ISO) para DD/MM/YYYY sem sofrer
+ * recuo de 1 dia por conversão UTC (Timezone Drift em UTC-3).
+ */
+export function formatLocalDateOnly(dateStr?: string | null): string {
+  if (!dateStr) return '';
+  const clean = dateStr.split('T')[0].trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+    const [y, m, d] = clean.split('-');
+    return `${d}/${m}/${y}`;
+  }
+  const parsed = new Date(dateStr);
+  if (isNaN(parsed.getTime())) return '';
+  const day = String(parsed.getDate()).padStart(2, '0');
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const year = parsed.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+/**
  * Extrai a hora local de uma data/timestamp no formato HH:mm
  */
 export function getLocalTimeString(d?: Date | string | null): string {

@@ -284,10 +284,14 @@ export const OSList: React.FC = () => {
                       type="button"
                       onClick={(e) => handleQuickPrint(e, order)}
                       aria-label="Imprimir OS / PDF"
-                      title="Imprimir / Salvar PDF"
+                      title={order.payment_method === 'prazo' || order.payment_method === 'a_combinar' ? "Imprimir Duplicata / PDF" : "Imprimir OS / PDF"}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-industrial-900 hover:bg-slate-100 active:scale-95 transition-all"
                     >
-                      <Printer className="w-4 h-4" />
+                      {order.payment_method === 'prazo' || order.payment_method === 'a_combinar' ? (
+                        <span className="text-[10px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded shadow-sm">📄</span>
+                      ) : (
+                        <Printer className="w-4 h-4" />
+                      )}
                     </button>
                     <span className="text-base font-black text-emerald-700">
                       R$ {Number(order.total_price).toFixed(2)}

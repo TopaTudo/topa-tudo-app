@@ -1,5 +1,5 @@
 import type { Order, OrderItem } from '@/core/types/database';
-import { formatLocalDateTime } from '@/core/utils/date';
+import { formatLocalDateTime, formatLocalDateOnly } from '@/core/utils/date';
 import { formatBRL } from '@/core/utils/currency';
 import { formatPaymentMethodLabel, calculateWarrantyEndDate } from '@/core/utils/whatsappReceipt';
 import { getLogoSvgRaw } from '@/core/ui/Logo';
@@ -36,8 +36,8 @@ export function generateOrderPrintHTML(order: Order, items: OrderItem[] = []): s
   const paymentMethodStr = formatPaymentMethodLabel(order.payment_method);
   const totalPriceFormatted = formatBRL(order.total_price);
 
-  const isPrazo = order.payment_method === 'prazo';
-  const dueDateFormatted = order.due_date ? new Date(order.due_date).toLocaleDateString('pt-BR') : '---';
+  const isPrazoOrCombinar = order.payment_method === 'prazo' || order.payment_method === 'a_combinar';
+  const dueDateFormatted = formatLocalDateOnly(order.due_date) || '_______/_______/_______';
 
   // Geração do Payload e QR Code PIX Oficial
   const pixCode = generatePixPayload({
@@ -89,7 +89,7 @@ export function generateOrderPrintHTML(order: Order, items: OrderItem[] = []): s
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ordem de Serviço ${codeFormatted} - Topa Tudo</title>
+  <title>${isPrazoOrCombinar ? 'Duplicata' : 'Ordem de Serviço'} ${codeFormatted} - Topa Tudo</title>
   <style>
     @page {
       size: A4 portrait;
@@ -644,7 +644,7 @@ export function generateOrderPrintHTML(order: Order, items: OrderItem[] = []): s
       </div>
 
       <div class="os-badge-box">
-        <div class="os-number">${isPrazo ? `DUPLICATA Nº ${codeFormatted}` : codeFormatted}</div>
+        <div class="os-number">${isPrazoOrCombinar ? `DUPLICATA Nº ${codeFormatted}` : codeFormatted}</div>
         <div>
           <span class="status-badge">${statusInfo.label}</span>
         </div>
@@ -656,11 +656,11 @@ export function generateOrderPrintHTML(order: Order, items: OrderItem[] = []): s
       </div>
     </header>
 
-    ${isPrazo ? `
+    ${isPrazoOrCombinar ? `
       <div class="card" style="margin-bottom: 12px; border: 2px solid #0f172a; background: #fef9c3;">
         <div class="card-title" style="color: #854d0e;">Condição de Pagamento</div>
         <div class="field-value" style="font-size: 14px; color: #854d0e;">
-          CONDIÇÃO: PAGAMENTO A PRAZO • VENCIMENTO DA DUPLICATA: ${dueDateFormatted}
+          CONDIÇÃO: ${order.payment_method === 'a_combinar' ? 'A COMBINAR' : 'PAGAMENTO A PRAZO'} • VENCIMENTO DA DUPLICATA: ${dueDateFormatted}
         </div>
       </div>
     ` : ''}
@@ -807,7 +807,7 @@ export function generateOrderPrintHTML(order: Order, items: OrderItem[] = []): s
             ? 'Assinatura Digital Coletada'
             : 'Assinatura do Cliente / Responsável'
         }</div>
-        ${isPrazo ? `<div class="sig-role" style="font-size: 8.5px; margin-top: 4px; font-style: italic;">Reconheço a exatidão da duplicata de prestação de serviços acima discriminada e prometo pagar seu valor na data de vencimento estipulada.</div>` : ''}
+        ${isPrazoOrCombinar ? `<div class="sig-role" style="font-size: 8.5px; margin-top: 4px; font-style: italic;">Reconheço a exatidão da duplicata de prestação de serviços acima discriminada e prometo pagar seu valor na data de vencimento estipulada.</div>` : ''}
       </div>
 
       <div class="signature-block">

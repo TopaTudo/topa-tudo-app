@@ -3,16 +3,14 @@ import { supabase } from '@/core/supabase';
 import { useAuth } from '@/core/context/AuthContext';
 import { useToast } from '@/core/context/ToastContext';
 import { parseBRLNumber, formatBRL } from '@/core/utils/currency';
-import { getLocalDateString } from '@/core/utils/date';
+import { getLocalDateString, formatLocalDateOnly } from '@/core/utils/date';
 import type { Transaction } from '@/core/types/database';
 import {
   DollarSign,
   TrendingUp,
   TrendingDown,
   Plus,
-  Filter,
   CheckCircle2,
-  Clock,
   Calendar,
   X,
   Save,
@@ -20,12 +18,17 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   ShieldAlert,
+  FileText,
+  AlertCircle,
+  Clock,
+  Check,
 } from 'lucide-react';
 
 export const FinancialView: React.FC = () => {
   const { isAdmin } = useAuth();
   const { success, error: toastError } = useToast();
 
+  const [activeTab, setActiveTab] = useState<'geral' | 'recebimentos'>('geral');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -41,6 +44,7 @@ export const FinancialView: React.FC = () => {
   const [status, setStatus] = useState<'confirmado' | 'pendente'>('confirmado');
   const [date, setDate] = useState(getLocalDateString());
   const [saving, setSaving] = useState(false);
+  const [payingId, setPayingId] = useState<string | null>(null);
 
   const fetchTransactions = async () => {
     setLoading(true);
@@ -65,7 +69,7 @@ export const FinancialView: React.FC = () => {
     fetchTransactions();
   }, []);
 
-  // Filter transactions
+  // Filter transactions for Tab "Visão Geral"
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
       if (typeFilter !== 'todos' && t.type !== typeFilter) return false;
@@ -82,19 +86,41 @@ export const FinancialView: React.FC = () => {
     });
   }, [transactions, typeFilter, statusFilter, searchQuery]);
 
+  // Duplicatas pendentes para Tab "Próximos Recebimentos"
+  const pendingReceivables = useMemo(() => {
+    return transactions
+      .filter((t) => t.type === 'receita' && t.payment_status === 'pendente')
+      .sort((a, b) => {
+        const dateA = a.due_date || '9999-12-31';
+        const dateB = b.due_date || '9999-12-31';
+        return dateA.localeCompare(dateB);
+      });
+  }, [transactions]);
+
   // Financial summary metrics
   const totals = useMemo(() => {
     let income = 0;
     let expense = 0;
-    let pending = 0;
+    let pendingIncome = 0;
+    const today = getLocalDateString();
+    let overdueCount = 0;
+    let overdueAmount = 0;
 
     for (const t of transactions) {
       const val = Number(t.amount) || 0;
-      if (t.status === 'confirmado') {
-        if (t.type === 'receita') income += val;
-        else expense += val;
-      } else {
-        pending += val;
+
+      if (t.type === 'receita') {
+        if (t.payment_status === 'pendente') {
+          pendingIncome += val;
+          if (t.due_date && t.due_date < today) {
+            overdueCount++;
+            overdueAmount += val;
+          }
+        } else if (t.status === 'confirmado') {
+          income += val;
+        }
+      } else if (t.type === 'despesa' && t.status === 'confirmado') {
+        expense += val;
       }
     }
 
@@ -102,7 +128,9 @@ export const FinancialView: React.FC = () => {
       income,
       expense,
       net: income - expense,
-      pending,
+      pendingIncome,
+      overdueCount,
+      overdueAmount,
     };
   }, [transactions]);
 
@@ -119,6 +147,7 @@ export const FinancialView: React.FC = () => {
         description: description.trim(),
         category: category.trim() || (type === 'receita' ? 'Serviço' : 'Geral'),
         status,
+        payment_status: status === 'confirmado' ? 'pago' : 'pendente',
         date: date || getLocalDateString(),
       });
 
@@ -129,7 +158,6 @@ export const FinancialView: React.FC = () => {
         `R$ ${parsedAmount.toFixed(2)} - ${description}`
       );
       setIsModalOpen(false);
-      // Reset
       setDescription('');
       setAmount('0');
       setCategory('');
@@ -146,7 +174,10 @@ export const FinancialView: React.FC = () => {
     try {
       const { error } = await supabase
         .from('transactions')
-        .update({ status: nextStatus })
+        .update({
+          status: nextStatus,
+          payment_status: nextStatus === 'confirmado' ? 'pago' : 'pendente',
+        })
         .eq('id', tx.id);
 
       if (error) throw error;
@@ -154,6 +185,33 @@ export const FinancialView: React.FC = () => {
       fetchTransactions();
     } catch (err: any) {
       toastError('Erro ao atualizar status', err.message);
+    }
+  };
+
+  // Dar Baixa em Duplicata a Prazo
+  const handleDarBaixa = async (tx: Transaction) => {
+    setPayingId(tx.id);
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({
+          payment_status: 'pago',
+          status: 'confirmado',
+        })
+        .eq('id', tx.id);
+
+      if (error) throw error;
+
+      success(
+        'Baixa realizada com sucesso!',
+        `Duplicata "${tx.description}" quitada e lançada no Caixa Realizado.`
+      );
+      fetchTransactions();
+    } catch (err: any) {
+      console.error('Erro ao dar baixa na duplicata:', err);
+      toastError('Erro ao dar baixa', err.message);
+    } finally {
+      setPayingId(null);
     }
   };
 
@@ -173,6 +231,8 @@ export const FinancialView: React.FC = () => {
     );
   }
 
+  const todayStr = getLocalDateString();
+
   return (
     <div className="space-y-4">
       {/* Top Banner */}
@@ -182,7 +242,7 @@ export const FinancialView: React.FC = () => {
             Fluxo de Caixa & Finanças
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Receitas de ordens de serviço, despesas operacionais e saldo líquido
+            Receitas de ordens de serviço, duplicatas a receber e despesas operacionais
           </p>
         </div>
 
@@ -202,233 +262,454 @@ export const FinancialView: React.FC = () => {
         </button>
       </div>
 
-      {/* KPI Summary Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* Income Card */}
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-xl bg-emerald-100 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
-            <TrendingUp className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="text-xs text-slate-600 font-bold uppercase block">
-              Receitas Confirmadas
+      {/* Navegação entre Abas */}
+      <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 max-w-md">
+        <button
+          type="button"
+          onClick={() => setActiveTab('geral')}
+          className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            activeTab === 'geral'
+              ? 'bg-industrial-900 text-white shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <TrendingUp className="w-4 h-4 text-emerald-400" />
+          <span>Visão Geral (Caixa)</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('recebimentos')}
+          className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            activeTab === 'recebimentos'
+              ? 'bg-industrial-900 text-white shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Clock className="w-4 h-4 text-amberAlert-500" />
+          <span>Próximos Recebimentos</span>
+          {pendingReceivables.length > 0 && (
+            <span className="px-2 py-0.5 text-[10px] font-black rounded-full bg-amber-500 text-industrial-950">
+              {pendingReceivables.length}
             </span>
-            <span className="text-xl font-black text-emerald-700 leading-tight">
-              R$ {totals.income.toFixed(2)}
-            </span>
-          </div>
-        </div>
-
-        {/* Expense Card */}
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-xl bg-rose-100 border border-rose-200 text-rose-700 flex items-center justify-center shrink-0">
-            <TrendingDown className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="text-xs text-slate-600 font-bold uppercase block">
-              Despesas Realizadas
-            </span>
-            <span className="text-xl font-black text-rose-700 leading-tight">
-              R$ {totals.expense.toFixed(2)}
-            </span>
-          </div>
-        </div>
-
-        {/* Net Balance Card */}
-        <div className="p-4 rounded-2xl bg-industrial-900 text-white shadow-md flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-xl bg-industrial-800 border border-industrial-700 text-amberAlert-500 flex items-center justify-center shrink-0">
-            <DollarSign className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="text-xs text-blue-200 font-bold uppercase block">
-              Saldo Líquido
-            </span>
-            <span
-              className={`text-xl font-black leading-tight ${
-                totals.net >= 0 ? 'text-emerald-400' : 'text-rose-400'
-              }`}
-            >
-              R$ {totals.net.toFixed(2)}
-            </span>
-          </div>
-        </div>
+          )}
+        </button>
       </div>
 
-      {/* Filter and Search Toolbar */}
-      <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-        <div className="relative">
-          <Search className="w-5 h-5 text-slate-500 absolute left-3.5 top-3" />
-          <input
-            type="text"
-            placeholder="Buscar por descrição ou categoria..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-sm font-medium focus:ring-2 focus:ring-industrial-800"
-          />
-        </div>
+      {activeTab === 'geral' ? (
+        <>
+          {/* KPI Summary Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            {/* Income Card */}
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-xl bg-emerald-100 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
+                <TrendingUp className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="text-xs text-slate-600 font-bold uppercase block">
+                  Caixa Realizado
+                </span>
+                <span className="text-xl font-black text-emerald-700 leading-tight">
+                  R$ {totals.income.toFixed(2)}
+                </span>
+              </div>
+            </div>
 
-        <div className="flex items-center justify-between gap-2 overflow-x-auto text-xs font-semibold pb-1">
-          {/* Type */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
-              onClick={() => setTypeFilter('todos')}
-              className={`px-3 py-1.5 rounded-xl border ${
-                typeFilter === 'todos'
-                  ? 'bg-industrial-800 text-white border-industrial-800'
-                  : 'bg-slate-100 text-slate-700 border-slate-200'
-              }`}
+            {/* Expense Card */}
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-xl bg-rose-100 border border-rose-200 text-rose-700 flex items-center justify-center shrink-0">
+                <TrendingDown className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="text-xs text-slate-600 font-bold uppercase block">
+                  Despesas Realizadas
+                </span>
+                <span className="text-xl font-black text-rose-700 leading-tight">
+                  R$ {totals.expense.toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            {/* Net Balance Card */}
+            <div className="p-4 rounded-2xl bg-industrial-900 text-white shadow-md flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-xl bg-industrial-800 border border-industrial-700 text-amberAlert-500 flex items-center justify-center shrink-0">
+                <DollarSign className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="text-xs text-blue-200 font-bold uppercase block">
+                  Saldo em Caixa
+                </span>
+                <span
+                  className={`text-xl font-black leading-tight ${
+                    totals.net >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                  }`}
+                >
+                  R$ {totals.net.toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            {/* Pending Receivables Card */}
+            <div
+              onClick={() => setActiveTab('recebimentos')}
+              className="p-4 rounded-2xl bg-amber-50 border border-amber-200 shadow-xs flex items-center gap-3.5 cursor-pointer hover:bg-amber-100/70 transition-colors"
+              title="Clique para ver duplicatas a receber"
             >
-              Todos
-            </button>
-            <button
-              type="button"
-              onClick={() => setTypeFilter('receita')}
-              className={`px-3 py-1.5 rounded-xl border ${
-                typeFilter === 'receita'
-                  ? 'bg-emerald-700 text-white border-emerald-700'
-                  : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-              }`}
-            >
-              Receitas
-            </button>
-            <button
-              type="button"
-              onClick={() => setTypeFilter('despesa')}
-              className={`px-3 py-1.5 rounded-xl border ${
-                typeFilter === 'despesa'
-                  ? 'bg-rose-700 text-white border-rose-700'
-                  : 'bg-rose-50 text-rose-800 border-rose-200'
-              }`}
-            >
-              Despesas
-            </button>
+              <div className="w-12 h-12 rounded-xl bg-amber-200 border border-amber-300 text-amber-900 flex items-center justify-center shrink-0 font-bold">
+                📄
+              </div>
+              <div>
+                <span className="text-xs text-amber-900 font-bold uppercase block">
+                  Duplicatas a Receber
+                </span>
+                <span className="text-xl font-black text-amber-800 leading-tight">
+                  R$ {totals.pendingIncome.toFixed(2)}
+                </span>
+              </div>
+            </div>
           </div>
 
-          {/* Status */}
-          <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200 shrink-0">
-            <button
-              type="button"
-              onClick={() => setStatusFilter('todos')}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold ${
-                statusFilter === 'todos' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
-              }`}
-            >
-              Todos
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('confirmado')}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold ${
-                statusFilter === 'confirmado'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-500'
-              }`}
-            >
-              Confirmados
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('pendente')}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold ${
-                statusFilter === 'pendente'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-500'
-              }`}
-            >
-              Pendentes
-            </button>
+          {/* Filter and Search Toolbar */}
+          <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+            <div className="relative">
+              <Search className="w-5 h-5 text-slate-500 absolute left-3.5 top-3" />
+              <input
+                type="text"
+                placeholder="Buscar por descrição ou categoria..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-sm font-medium focus:ring-2 focus:ring-industrial-800"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-2 overflow-x-auto text-xs font-semibold pb-1">
+              {/* Type */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setTypeFilter('todos')}
+                  className={`px-3 py-1.5 rounded-xl border ${
+                    typeFilter === 'todos'
+                      ? 'bg-industrial-800 text-white border-industrial-800'
+                      : 'bg-slate-100 text-slate-700 border-slate-200'
+                  }`}
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTypeFilter('receita')}
+                  className={`px-3 py-1.5 rounded-xl border ${
+                    typeFilter === 'receita'
+                      ? 'bg-emerald-700 text-white border-emerald-700'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  }`}
+                >
+                  Receitas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTypeFilter('despesa')}
+                  className={`px-3 py-1.5 rounded-xl border ${
+                    typeFilter === 'despesa'
+                      ? 'bg-rose-700 text-white border-rose-700'
+                      : 'bg-rose-50 text-rose-800 border-rose-200'
+                  }`}
+                >
+                  Despesas
+                </button>
+              </div>
+
+              {/* Status */}
+              <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('todos')}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold ${
+                    statusFilter === 'todos'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500'
+                  }`}
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('confirmado')}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold ${
+                    statusFilter === 'confirmado'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500'
+                  }`}
+                >
+                  Confirmados
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('pendente')}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold ${
+                    statusFilter === 'pendente'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500'
+                  }`}
+                >
+                  Pendentes
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Transactions List */}
-      {loading ? (
-        <div className="p-12 text-center text-slate-600">
-          <div className="w-10 h-10 border-4 border-industrial-800 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="font-semibold text-sm">Carregando movimentações financeiras...</p>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-600">
-          <DollarSign className="w-10 h-10 text-slate-500 mx-auto mb-2" />
-          <h3 className="font-bold text-base text-slate-800">Nenhum lançamento encontrado</h3>
-          <p className="text-xs text-slate-600 mt-1">
-            As ordens de serviço concluídas geram lançamentos automáticos de receita.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2.5">
-          {filtered.map((item) => {
-            const isIncome = item.type === 'receita';
-            const isConfirmed = item.status === 'confirmado';
+          {/* Transactions List */}
+          {loading ? (
+            <div className="p-12 text-center text-slate-600">
+              <div className="w-10 h-10 border-4 border-industrial-800 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+              <p className="font-semibold text-sm">Carregando movimentações financeiras...</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-600">
+              <DollarSign className="w-10 h-10 text-slate-500 mx-auto mb-2" />
+              <h3 className="font-bold text-base text-slate-800">Nenhum lançamento encontrado</h3>
+              <p className="text-xs text-slate-600 mt-1">
+                As ordens de serviço concluídas geram lançamentos automáticos de receita.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {filtered.map((item) => {
+                const isIncome = item.type === 'receita';
+                const isDuplicata = isIncome && item.payment_status === 'pendente';
+                const isConfirmed = item.status === 'confirmado';
 
-            return (
-              <div
-                key={item.id}
-                className="bg-white rounded-2xl border border-slate-200 p-3.5 sm:p-4 shadow-xs flex items-center justify-between gap-3"
-              >
-                <div className="flex items-center gap-3">
+                return (
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                      isIncome
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-rose-100 text-rose-700'
-                    }`}
+                    key={item.id}
+                    className="bg-white rounded-2xl border border-slate-200 p-3.5 sm:p-4 shadow-xs flex items-center justify-between gap-3"
                   >
-                    {isIncome ? (
-                      <ArrowDownLeft className="w-5 h-5" />
-                    ) : (
-                      <ArrowUpRight className="w-5 h-5" />
-                    )}
-                  </div>
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                          isIncome
+                            ? isDuplicata
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-emerald-100 text-emerald-700'
+                            : 'bg-rose-100 text-rose-700'
+                        }`}
+                      >
+                        {isIncome ? (
+                          isDuplicata ? (
+                            <span className="text-base">📄</span>
+                          ) : (
+                            <ArrowDownLeft className="w-5 h-5" />
+                          )
+                        ) : (
+                          <ArrowUpRight className="w-5 h-5" />
+                        )}
+                      </div>
 
-                  <div>
-                    <h4 className="font-bold text-sm text-slate-900 leading-tight">
-                      {item.description}
-                    </h4>
-                    <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
-                      {item.category && (
-                        <span className="font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
-                          {item.category}
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-900 leading-tight flex items-center gap-1.5">
+                          <span>{item.description}</span>
+                          {isDuplicata && (
+                            <span className="text-[10px] font-black bg-amber-500 text-industrial-950 px-2 py-0.5 rounded-full uppercase">
+                              Duplicata
+                            </span>
+                          )}
+                        </h4>
+                        <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
+                          {item.category && (
+                            <span className="font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                              {item.category}
+                            </span>
+                          )}
+                          <span>
+                            {item.date ? formatLocalDateOnly(item.date) : ''}
+                          </span>
+                          {item.due_date && isDuplicata && (
+                            <span className="text-amber-700 font-bold">
+                              • Vence: {formatLocalDateOnly(item.due_date)}
+                            </span>
+                          )}
+                          {item.order_id && (
+                            <span className="text-industrial-800 font-semibold">
+                              • Vinculado à OS
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right flex items-center gap-3">
+                      <div>
+                        <span
+                          className={`text-base font-black block leading-tight ${
+                            isIncome
+                              ? isDuplicata
+                                ? 'text-amber-700'
+                                : 'text-emerald-700'
+                              : 'text-rose-700'
+                          }`}
+                        >
+                          {isIncome ? '+' : '-'} R$ {Number(item.amount).toFixed(2)}
                         </span>
-                      )}
-                      <span>
-                        {item.date
-                          ? new Date(item.date + 'T00:00:00').toLocaleDateString('pt-BR')
-                          : ''}
-                      </span>
-                      {item.order_id && (
-                        <span className="text-industrial-800 font-semibold">• Vinculado à OS</span>
-                      )}
+                        {isDuplicata ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDarBaixa(item)}
+                            disabled={payingId === item.id}
+                            className="text-[10px] uppercase font-black px-2.5 py-1 rounded-full mt-1 bg-amber-500 hover:bg-amber-600 active:scale-95 text-industrial-950 shadow-xs transition-all disabled:opacity-50"
+                          >
+                            {payingId === item.id ? 'Baixando...' : 'Dar Baixa'}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStatus(item)}
+                            className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full mt-1 inline-block ${
+                              isConfirmed
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {item.status}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      ) : (
+        /* Aba 2: Próximos Recebimentos (Duplicatas a Prazo) */
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="p-4 rounded-2xl bg-amber-500 text-industrial-950 shadow-md">
+              <span className="text-xs font-black uppercase tracking-wider block opacity-90">
+                Total a Receber em Duplicatas
+              </span>
+              <span className="text-2xl font-black block mt-1">
+                R$ {totals.pendingIncome.toFixed(2)}
+              </span>
+              <span className="text-xs font-bold block mt-1 opacity-90">
+                {pendingReceivables.length} duplicatas aguardando quitação
+              </span>
+            </div>
 
-                <div className="text-right flex items-center gap-3">
-                  <div>
-                    <span
-                      className={`text-base font-black block leading-tight ${
-                        isIncome ? 'text-emerald-700' : 'text-rose-700'
-                      }`}
-                    >
-                      {isIncome ? '+' : '-'} R$ {Number(item.amount).toFixed(2)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleStatus(item)}
-                      className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full mt-1 inline-block ${
-                        isConfirmed
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-amber-100 text-amber-800'
-                      }`}
-                    >
-                      {item.status}
-                    </button>
-                  </div>
-                </div>
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                  Duplicatas Vencidas
+                </span>
+                <span className="text-xl font-black text-rose-700 block mt-1">
+                  R$ {totals.overdueAmount.toFixed(2)}
+                </span>
+                <span className="text-xs text-rose-600 font-bold block mt-0.5">
+                  {totals.overdueCount} {totals.overdueCount === 1 ? 'duplicata em atraso' : 'duplicatas em atraso'}
+                </span>
               </div>
-            );
-          })}
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
+            <h3 className="font-black text-base text-industrial-900 mb-3 flex items-center gap-2">
+              <span>📄</span>
+              <span>Duplicatas a Receber por Vencimento</span>
+            </h3>
+
+            {pendingReceivables.length === 0 ? (
+              <div className="p-12 text-center text-slate-500">
+                <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-2" />
+                <p className="font-bold text-slate-800">Nenhuma duplicata pendente!</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Todas as duplicatas a prazo foram baixadas ou todas as OSs foram quitadas à vista via PIX.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {pendingReceivables.map((duplicata) => {
+                  const dueDate = duplicata.due_date || '';
+                  const isOverdue = dueDate && dueDate < todayStr;
+                  const isToday = dueDate === todayStr;
+
+                  return (
+                    <div
+                      key={duplicata.id}
+                      className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                        isOverdue
+                          ? 'border-rose-300 bg-rose-50/50'
+                          : isToday
+                          ? 'border-amber-300 bg-amber-50/50'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-black text-base text-slate-900">
+                            {duplicata.description}
+                          </span>
+                          {isOverdue && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white uppercase tracking-wider">
+                              Vencida
+                            </span>
+                          )}
+                          {isToday && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-industrial-950 uppercase tracking-wider">
+                              Vence Hoje
+                            </span>
+                          )}
+                          {!isOverdue && !isToday && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-900 uppercase tracking-wider">
+                              A Vencer
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-3 text-xs text-slate-600 flex-wrap">
+                          <span>
+                            Emissão: {duplicata.date ? formatLocalDateOnly(duplicata.date) : '---'}
+                          </span>
+                          <span>•</span>
+                          <span className="font-bold text-slate-800">
+                            Vencimento:{' '}
+                            {duplicata.due_date
+                              ? formatLocalDateOnly(duplicata.due_date)
+                              : 'A Combinar'}
+                          </span>
+                          {duplicata.order_id && (
+                            <>
+                              <span>•</span>
+                              <span className="text-industrial-800 font-semibold">
+                                Vinculado à OS
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200">
+                        <span className="text-lg font-black text-industrial-900">
+                          R$ {Number(duplicata.amount).toFixed(2)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleDarBaixa(duplicata)}
+                          disabled={payingId === duplicata.id}
+                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-md flex items-center gap-1.5 transition-all disabled:opacity-50"
+                        >
+                          <Check className="w-4 h-4" />
+                          <span>{payingId === duplicata.id ? 'Baixando...' : 'Dar Baixa (Recebido)'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

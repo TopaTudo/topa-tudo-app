@@ -84,7 +84,7 @@ export interface Order {
   address: string | null;
   description: string | null;
   total_price: number;
-  payment_method?: 'pix' | 'prazo';
+  payment_method?: 'pix' | 'prazo' | 'a_combinar';
   due_date?: string | null;
   warranty_days: number;
   signature_url?: string | null;

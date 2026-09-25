@@ -3,6 +3,7 @@ import { supabase, completeWorkOrderRPC } from '@/core/supabase';
 import { useAuth } from '@/core/context/AuthContext';
 import { useToast } from '@/core/context/ToastContext';
 import type { Order, OrderItem } from '@/core/types/database';
+import { formatLocalDateOnly } from '@/core/utils/date';
 import { printOrderService } from '@/core/utils/printOS';
 import {
   generateReceiptMessage,
@@ -513,10 +514,20 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                   Condição de Pagamento
                 </span>
                 <div className="mt-1">
-                  {order.payment_method === 'prazo' ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500 text-industrial-950 font-black text-[11px] shadow-sm uppercase tracking-wider">
-                      <span className="text-xs">📄</span> DUPLICATA A PRAZO • Venc: {order.due_date ? new Date(order.due_date).toLocaleDateString('pt-BR') : '---'}
-                    </span>
+                  {order.payment_method === 'prazo' || order.payment_method === 'a_combinar' ? (
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500 text-industrial-950 font-black text-[11px] shadow-sm uppercase tracking-wider">
+                        <span className="text-xs">📄</span> DUPLICATA {order.payment_method === 'a_combinar' ? 'A COMBINAR' : 'A PRAZO'} • {order.due_date ? `Venc: ${formatLocalDateOnly(order.due_date)}` : 'Venc: A COMBINAR'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handlePrint}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-[10px] uppercase transition-all"
+                      >
+                        <Printer className="w-3 h-3" />
+                        Imprimir Duplicata
+                      </button>
+                    </div>
                   ) : (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500 text-white font-black text-[11px] shadow-sm uppercase tracking-wider">
                       <span className="text-xs">⚡</span> PAGAMENTO: PIX (À VISTA)

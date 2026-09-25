@@ -9,7 +9,10 @@
 
 -- 1. Alterar public.orders
 ALTER TABLE public.orders 
-ADD COLUMN IF NOT EXISTS payment_method TEXT NOT NULL DEFAULT 'pix' CHECK (payment_method IN ('pix', 'prazo'));
+ADD COLUMN IF NOT EXISTS payment_method TEXT NOT NULL DEFAULT 'pix';
+
+ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_payment_method_check;
+ALTER TABLE public.orders ADD CONSTRAINT orders_payment_method_check CHECK (payment_method IN ('pix', 'prazo', 'a_combinar'));
 
 ALTER TABLE public.orders 
 ADD COLUMN IF NOT EXISTS due_date DATE NULL;
@@ -105,7 +108,7 @@ BEGIN
             SELECT 1 FROM public.transactions 
             WHERE order_id = p_order_id AND type = 'receita'
         ) THEN
-            IF v_order.payment_method = 'prazo' THEN
+            IF v_order.payment_method IN ('prazo', 'a_combinar') THEN
                 INSERT INTO public.transactions (
                     type,
                     amount,

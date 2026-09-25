@@ -1,5 +1,5 @@
 import type { Order, Client, Profile, OrderItem } from '@/core/types/database';
-import { formatLocalDateTime } from '@/core/utils/date';
+import { formatLocalDateTime, formatLocalDateOnly } from '@/core/utils/date';
 import { PIX_KEY_FORMATTED, generatePixPayload } from '@/core/utils/pix';
 
 /**
@@ -142,7 +142,7 @@ export function generateReceiptMessage(
   const warrantyDays = order.warranty_days ?? 90;
   const warrantyEndDate = calculateWarrantyEndDate(order.completed_at, warrantyDays);
   
-  const isPrazo = order.payment_method === 'prazo';
+  const isPrazo = order.payment_method === 'prazo' || order.payment_method === 'a_combinar';
 
   const lines: string[] = [
     '🏠 *TOPA TUDO - MANUTENÇÃO & SERVIÇOS* ✨',
@@ -156,7 +156,7 @@ export function generateReceiptMessage(
     `📅 *Data de Conclusão:* ${conclusionDate}`,
   ];
   if (isPrazo) {
-      lines.push(`📅 *Data de Vencimento:* *${order.due_date ? new Date(order.due_date).toLocaleDateString('pt-BR') : '---'}*`);
+      lines.push(`📅 *Data de Vencimento:* *${formatLocalDateOnly(order.due_date) || 'A Combinar'}*`);
   }
   lines.push(`👨🔧 *Técnico Responsável:* ${techName}`, '');
   lines.push('🛠️ *Serviço Executado:*', serviceDesc);
@@ -190,7 +190,7 @@ export function generateReceiptMessage(
     });
 
     lines.push('');
-    lines.push(isPrazo ? '⚡ *INFORMAÇÕES PARA PAGAMENTO VIA PIX:' : '⚡ *DADOS PARA PAGAMENTO VIA PIX:*');
+    lines.push(isPrazo ? '⚡ *INFORMAÇÕES PARA PAGAMENTO VIA PIX:*' : '⚡ *DADOS PARA PAGAMENTO VIA PIX:*');
     lines.push(`🔑 *Chave PIX:* \`${PIX_KEY_FORMATTED}\``);
     lines.push('🏢 *Favorecido:* Agripino Onofre de Paiva');
     lines.push(`💵 *Valor:* R$ ${totalPrice}`);
