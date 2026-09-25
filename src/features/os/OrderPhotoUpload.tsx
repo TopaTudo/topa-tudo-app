@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
 import { uploadMedia } from '@/core/supabase';
 import { useToast } from '@/core/context/ToastContext';
-import { compressImage } from '@/core/utils/image';
-import { Camera, ImagePlus, Trash2, Loader2, ExternalLink } from 'lucide-react';
+import { compressImageWithStats, formatBytes } from '@/core/utils/image';
+import {
+  Camera,
+  ImagePlus,
+  Trash2,
+  Loader2,
+  ExternalLink,
+  ZoomIn,
+  X,
+  Sparkles,
+} from 'lucide-react';
 
 interface OrderPhotoUploadProps {
   label: string;
@@ -21,6 +30,8 @@ export const OrderPhotoUpload: React.FC<OrderPhotoUploadProps> = ({
 }) => {
   const { success, error: toastError } = useToast();
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
 
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -29,14 +40,23 @@ export const OrderPhotoUpload: React.FC<OrderPhotoUploadProps> = ({
     setUploading(true);
     const newUrls: string[] = [];
     const errors: string[] = [];
+    let totalOriginalBytes = 0;
+    let totalCompressedBytes = 0;
 
     try {
-      for (let i = 0; i < files.length; i++) {
+      const totalCount = files.length;
+
+      for (let i = 0; i < totalCount; i++) {
         const originalFile = files[i];
+        setUploadProgress(`Otimizando e enviando ${i + 1} de ${totalCount}...`);
+
         try {
-          // Comprimir imagem antes do upload (ex: de 10MB para ~300KB)
-          const compressedFile = await compressImage(originalFile);
-          const publicUrl = await uploadMedia(compressedFile, folder);
+          // Comprimir imagem no cliente (Canvas 2D, max 1600px, WebP/JPEG qualidade 0.82)
+          const compResult = await compressImageWithStats(originalFile, 1600, 0.82);
+          totalOriginalBytes += compResult.originalSize;
+          totalCompressedBytes += compResult.compressedSize;
+
+          const publicUrl = await uploadMedia(compResult.file, folder);
           newUrls.push(publicUrl);
         } catch (fileErr: any) {
           console.error(`Falha no upload do arquivo ${originalFile.name}:`, fileErr);
@@ -46,14 +66,28 @@ export const OrderPhotoUpload: React.FC<OrderPhotoUploadProps> = ({
 
       if (newUrls.length > 0) {
         onChange([...photos, ...newUrls]);
+
+        const savedBytes = totalOriginalBytes - totalCompressedBytes;
+        const savedPct =
+          totalOriginalBytes > 0
+            ? Math.round((savedBytes / totalOriginalBytes) * 100)
+            : 0;
+
+        const statsMsg =
+          savedBytes > 0 && totalOriginalBytes > 0
+            ? ` (${formatBytes(totalOriginalBytes)} → ${formatBytes(totalCompressedBytes)}, -${savedPct}%)`
+            : '';
+
         if (errors.length === 0) {
           success(
             newUrls.length === 1
-              ? 'Foto enviada e otimizada com sucesso!'
-              : `${newUrls.length} fotos enviadas e otimizadas com sucesso!`
+              ? `Foto otimizada e salva com sucesso!${statsMsg}`
+              : `${newUrls.length} fotos otimizadas e salvas com sucesso!${statsMsg}`
           );
         } else {
-          success(`${newUrls.length} foto(s) enviada(s), mas ${errors.length} falhou.`);
+          success(
+            `${newUrls.length} foto(s) enviada(s)${statsMsg}, mas ${errors.length} falhou.`
+          );
         }
       }
 
@@ -68,7 +102,7 @@ export const OrderPhotoUpload: React.FC<OrderPhotoUploadProps> = ({
       toastError('Erro ao enviar foto', err.message || 'Tente novamente');
     } finally {
       setUploading(false);
-      // Reset input para permitir selecionar o mesmo arquivo novamente se necessário
+      setUploadProgress(null);
       e.target.value = '';
     }
   };
@@ -81,13 +115,14 @@ export const OrderPhotoUpload: React.FC<OrderPhotoUploadProps> = ({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-          {label} ({photos.length})
+        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+          <span>{label}</span>
+          <span className="text-slate-400 font-semibold">({photos.length})</span>
         </label>
         {uploading && (
           <span className="flex items-center gap-1.5 text-xs text-blue-600 font-semibold animate-pulse">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            Enviando foto...
+            <span>{uploadProgress || 'Otimizando foto...'}</span>
           </span>
         )}
       </div>
@@ -97,27 +132,31 @@ export const OrderPhotoUpload: React.FC<OrderPhotoUploadProps> = ({
         {photos.map((url, idx) => (
           <div
             key={idx}
-            className="group relative aspect-square rounded-xl overflow-hidden bg-slate-200 border border-slate-300 shadow-sm"
+            className="group relative aspect-square rounded-xl overflow-hidden bg-slate-200 border border-slate-300 shadow-xs"
           >
             <img
               src={url}
               alt={`${label} ${idx + 1}`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover cursor-pointer"
               loading="lazy"
+              onClick={() => setPreviewPhotoUrl(url)}
             />
 
             {/* Quick Actions overlay */}
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 sm:transition-opacity flex items-center justify-center gap-2 p-1">
-              <a
-                href={url}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setPreviewPhotoUrl(url);
+                }}
                 aria-label="Ampliar foto"
                 className="min-h-[44px] min-w-[44px] p-2.5 rounded-lg bg-white/95 text-slate-900 hover:bg-white active:scale-90 flex items-center justify-center transition-all shadow-xs"
                 title="Ampliar foto"
               >
-                <ExternalLink className="w-4 h-4" />
-              </a>
+                <ZoomIn className="w-4 h-4" />
+              </button>
               {!disabled && (
                 <button
                   type="button"
@@ -170,6 +209,9 @@ export const OrderPhotoUpload: React.FC<OrderPhotoUploadProps> = ({
               <span className="text-[11px] font-bold text-center leading-tight">
                 Tirar Foto
               </span>
+              <span className="text-[9px] text-blue-600 font-medium flex items-center gap-0.5 mt-0.5">
+                <Sparkles className="w-2.5 h-2.5" /> Auto-HD
+              </span>
             </label>
 
             {/* Gallery Upload */}
@@ -186,10 +228,52 @@ export const OrderPhotoUpload: React.FC<OrderPhotoUploadProps> = ({
               <span className="text-[11px] font-bold text-center leading-tight">
                 Galeria
               </span>
+              <span className="text-[9px] text-slate-400 font-medium mt-0.5">
+                Múltiplas
+              </span>
             </label>
           </>
         )}
       </div>
+
+      {/* Lightbox In-App Preview Modal */}
+      {previewPhotoUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-150"
+          onClick={() => setPreviewPhotoUrl(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="absolute top-2 right-2 flex items-center gap-2 z-10">
+              <a
+                href={previewPhotoUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="p-2.5 rounded-full bg-white/20 hover:bg-white/40 text-white backdrop-blur-md transition-all flex items-center justify-center"
+                title="Abrir imagem original em nova aba"
+              >
+                <ExternalLink className="w-5 h-5" />
+              </a>
+              <button
+                type="button"
+                onClick={() => setPreviewPhotoUrl(null)}
+                className="p-2.5 rounded-full bg-white/20 hover:bg-white/40 text-white backdrop-blur-md transition-all flex items-center justify-center"
+                title="Fechar visualização"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <img
+              src={previewPhotoUrl}
+              alt="Ampliação da foto de serviço"
+              className="max-h-[85vh] max-w-full rounded-2xl object-contain shadow-2xl"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
