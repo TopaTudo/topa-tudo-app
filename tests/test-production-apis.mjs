@@ -49,6 +49,13 @@ export async function runProductionVerification() {
   console.log('🌐 VERIFICAÇÃO DE PRODUÇÃO: APIs SUPABASE E APLICAÇÃO VERCEL');
   console.log('===============================================================\n');
 
+  let sampleConcludedOrderId = 'a20a9a51-6af9-4e2c-86df-fb3481af16a8';
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/orders?select=id&status=eq.concluido&limit=1`, { headers: HEADERS });
+    const d = await r.json();
+    if (Array.isArray(d) && d[0]?.id) sampleConcludedOrderId = d[0].id;
+  } catch { /* fallback */ }
+
   const tests = [
     {
       name: 'Vercel Web App (HTML Shell & Assets)',
@@ -96,7 +103,7 @@ export async function runProductionVerification() {
       options: {
         method: 'POST',
         headers: HEADERS,
-        body: JSON.stringify({ p_order_id: '50636662-b0df-4b51-86e1-be44949d8068' })
+        body: JSON.stringify({ p_order_id: sampleConcludedOrderId })
       }
     }
   ];
