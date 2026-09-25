@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/core/supabase';
 import { useAuth } from '@/core/context/AuthContext';
 import { useToast } from '@/core/context/ToastContext';
@@ -18,6 +18,7 @@ import {
   Save,
   CheckCircle,
   AlertTriangle,
+  Search,
 } from 'lucide-react';
 
 interface OrderFormModalProps {
@@ -26,6 +27,9 @@ interface OrderFormModalProps {
   onClose: () => void;
   onSaved: () => void;
 }
+
+const normalize = (str: string) =>
+  str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 export const OrderFormModal: React.FC<OrderFormModalProps> = ({
   orderToEdit,
@@ -47,7 +51,7 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
   const [address, setAddress] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [totalPrice, setTotalPrice] = useState<string>('0');
-  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'prazo'>('pix');
+  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'prazo' | 'a_combinar'>('pix');
   const [dueDate, setDueDate] = useState<string>('');
   const [warrantyDays, setWarrantyDays] = useState<number>(90);
   const [scheduledAtDate, setScheduledAtDate] = useState<string>('');
@@ -62,48 +66,54 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
   const [newClientPhone, setNewClientPhone] = useState('');
   const [newClientAddress, setNewClientAddress] = useState('');
 
+  // Search
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredClients = useMemo(() => {
+    if (!searchTerm) return clients;
+    const term = normalize(searchTerm);
+    return clients.filter(c =>
+      normalize(c.name).includes(term) ||
+      (c.phone && normalize(c.phone).includes(term)) ||
+      (c.address && normalize(c.address).includes(term)) ||
+      (c.notes && normalize(c.notes).includes(term))
+    );
+  }, [clients, searchTerm]);
+
+  const selectedClient = useMemo(() => clients.find(c => c.id === clientId), [clients, clientId]);
+
   const addDaysToDate = (days: number) => {
     const date = new Date();
     date.setDate(date.getDate() + days);
     return date.toISOString().split('T')[0];
   };
 
-  // Initial load
   useEffect(() => {
     async function loadAuxData() {
-      // Load clients
       const { data: cData } = await supabase.from('clients').select('*').order('name');
       if (cData) setClients(cData as Client[]);
-
-      // Load services catalog
       const { data: sData } = await supabase.from('services_catalog').select('*').order('title');
       if (sData) setServicesCatalog(sData as ServiceCatalogItem[]);
     }
-
     if (isOpen) {
       loadAuxData();
     }
   }, [isOpen]);
 
-  // Populate data when editing
   useEffect(() => {
     if (!isOpen) return;
-
     if (orderToEdit) {
       setClientId(orderToEdit.client_id || '');
       setTechId(orderToEdit.tech_id || '');
       setStatus(orderToEdit.status);
       setAddress(orderToEdit.address || '');
       setDescription(orderToEdit.description || '');
-      setTotalPrice(
-        orderToEdit.total_price != null ? String(orderToEdit.total_price) : '0'
-      );
-      setPaymentMethod((orderToEdit.payment_method as 'pix' | 'prazo') || 'pix');
+      setTotalPrice(orderToEdit.total_price != null ? String(orderToEdit.total_price) : '0');
+      setPaymentMethod((orderToEdit.payment_method as 'pix' | 'prazo' | 'a_combinar') || 'pix');
       setDueDate(orderToEdit.due_date || '');
       setWarrantyDays(orderToEdit.warranty_days || 90);
       setPhotosBefore(orderToEdit.photos_before || []);
       setPhotosAfter(orderToEdit.photos_after || []);
-
       if (orderToEdit.scheduled_at) {
         setScheduledAtDate(getLocalDateString(orderToEdit.scheduled_at));
         setScheduledAtTime(getLocalTimeString(orderToEdit.scheduled_at));
@@ -111,27 +121,12 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
         setScheduledAtDate('');
         setScheduledAtTime('');
       }
-
-      // Load existing order items
-      supabase
-        .from('order_items')
-        .select('*')
-        .eq('order_id', orderToEdit.id)
-        .then(({ data }) => {
-          if (data) {
-            setItems(
-              data.map((it) => ({
-                material_id: it.material_id,
-                name: it.name,
-                quantity: Number(it.quantity),
-                unit_cost: Number(it.unit_cost),
-                source: it.source,
-              }))
-            );
-          }
-        });
+      supabase.from('order_items').select('*').eq('order_id', orderToEdit.id).then(({ data }) => {
+        if (data) {
+          setItems(data.map((it) => ({ material_id: it.material_id, name: it.name, quantity: Number(it.quantity), unit_cost: Number(it.unit_cost), source: it.source })));
+        }
+      });
     } else {
-      // Default new order
       setClientId('');
       setTechId(currentProfile?.id || '');
       setStatus('orcamento');
@@ -147,32 +142,25 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
       setPhotosAfter([]);
       setItems([]);
       setIsQuickClient(false);
+      setSearchTerm('');
     }
   }, [orderToEdit?.id, isOpen]);
 
-  // When client changes, auto-fill address if empty
   const handleClientSelect = (cId: string) => {
     setClientId(cId);
     const selected = clients.find((c) => c.id === cId);
     if (selected && selected.address && !address) {
       setAddress(selected.address);
     }
+    setSearchTerm('');
   };
 
-  // Quick helper to append service catalog item into description & price
-  const handleAddCatalogService = (
-    catalogItem: ServiceCatalogItem,
-    e?: React.MouseEvent
-  ) => {
+  const handleAddCatalogService = (catalogItem: ServiceCatalogItem, e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
-    const updatedDesc = description
-      ? `${description}\n• ${catalogItem.title}`
-      : `• ${catalogItem.title}`;
+    const updatedDesc = description ? `${description}\n• ${catalogItem.title}` : `• ${catalogItem.title}`;
     setDescription(updatedDesc);
-    setTotalPrice((prev) =>
-      (parseBRLNumber(prev) + Number(catalogItem.default_price || 0)).toFixed(2)
-    );
+    setTotalPrice((prev) => (parseBRLNumber(prev) + Number(catalogItem.default_price || 0)).toFixed(2));
   };
 
   const isConcluded = orderToEdit?.status === 'concluido';
@@ -180,101 +168,32 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-
     try {
       let finalClientId = clientId;
-
-      // 1. Create client if quick registration is enabled
       if (isQuickClient) {
-        if (!newClientName.trim()) {
-          throw new Error('Informe o nome do cliente.');
-        }
-
-        const { data: newClient, error: clientErr } = await supabase
-          .from('clients')
-          .insert({
-            name: newClientName.trim(),
-            phone: newClientPhone.trim() || null,
-            address: newClientAddress.trim() || address.trim() || null,
-          })
-          .select()
-          .single();
-
+        if (!newClientName.trim()) throw new Error('Informe o nome do cliente.');
+        const { data: newClient, error: clientErr } = await supabase.from('clients').insert({ name: newClientName.trim(), phone: newClientPhone.trim() || null, address: newClientAddress.trim() || address.trim() || null }).select().single();
         if (clientErr) throw clientErr;
         finalClientId = newClient.id;
       }
-
-      // Format schedule datetime with local timezone preservation
       let scheduledAt: string | null = null;
-      if (scheduledAtDate) {
-        scheduledAt = createLocalISOString(scheduledAtDate, scheduledAtTime || '09:00');
-      }
-
-      const orderPayload = {
-        client_id: finalClientId || null,
-        tech_id: techId || null,
-        status,
-        address: address.trim() || null,
-        description: description.trim() || null,
-        total_price: parseBRLNumber(totalPrice),
-        payment_method: paymentMethod,
-        due_date: paymentMethod === 'prazo' ? (dueDate || null) : null,
-        warranty_days: Number(warrantyDays) || 90,
-        photos_before: photosBefore,
-        photos_after: photosAfter,
-        scheduled_at: scheduledAt,
-      };
-
+      if (scheduledAtDate) scheduledAt = createLocalISOString(scheduledAtDate, scheduledAtTime || '09:00');
+      const orderPayload = { client_id: finalClientId || null, tech_id: techId || null, status, address: address.trim() || null, description: description.trim() || null, total_price: parseBRLNumber(totalPrice), payment_method: paymentMethod, due_date: (paymentMethod === 'prazo' || paymentMethod === 'a_combinar') ? (dueDate || null) : null, warranty_days: Number(warrantyDays) || 90, photos_before: photosBefore, photos_after: photosAfter, scheduled_at: scheduledAt };
       let savedOrderId = orderToEdit?.id;
-
       if (orderToEdit) {
-        // Update
-        const { error: updateErr } = await supabase
-          .from('orders')
-          .update(orderPayload)
-          .eq('id', orderToEdit.id);
-
+        const { error: updateErr } = await supabase.from('orders').update(orderPayload).eq('id', orderToEdit.id);
         if (updateErr) throw updateErr;
-
-        // Se a OS já estiver concluída, não substitui itens para evitar descompasso de estoque
-        if (!isConcluded) {
-          await supabase.from('order_items').delete().eq('order_id', orderToEdit.id);
-        }
+        if (!isConcluded) await supabase.from('order_items').delete().eq('order_id', orderToEdit.id);
       } else {
-        // Insert
-        const { data: newOrder, error: insertErr } = await supabase
-          .from('orders')
-          .insert(orderPayload)
-          .select()
-          .single();
-
+        const { data: newOrder, error: insertErr } = await supabase.from('orders').insert(orderPayload).select().single();
         if (insertErr) throw insertErr;
         savedOrderId = newOrder.id;
       }
-
-      // Save order items only if not concluded or if creating new
       if (items.length > 0 && savedOrderId && !isConcluded) {
-        const itemsToInsert = items.map((it) => ({
-          order_id: savedOrderId,
-          material_id: it.material_id,
-          name: it.name,
-          quantity: it.quantity,
-          unit_cost: it.unit_cost,
-          source: it.source,
-        }));
-
-        const { error: itemsErr } = await supabase
-          .from('order_items')
-          .insert(itemsToInsert);
-
+        const { error: itemsErr } = await supabase.from('order_items').insert(items.map((it) => ({ order_id: savedOrderId, material_id: it.material_id, name: it.name, quantity: it.quantity, unit_cost: it.unit_cost, source: it.source })));
         if (itemsErr) throw itemsErr;
       }
-
-      success(
-        orderToEdit
-          ? `OS #${orderToEdit.code} atualizada com sucesso!`
-          : 'Ordem de Serviço criada com sucesso!'
-      );
+      success(orderToEdit ? `OS #${orderToEdit.code} atualizada com sucesso!` : 'Ordem de Serviço criada com sucesso!');
       onSaved();
       onClose();
     } catch (err: any) {
@@ -290,42 +209,21 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
       <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200">
-        {/* Modal Header */}
         <div className="px-5 py-4 bg-industrial-900 text-white flex items-center justify-between shrink-0">
           <div>
-            <h2 className="text-lg font-bold">
-              {orderToEdit ? `Editar OS #${orderToEdit.code}` : 'Nova Ordem de Serviço'}
-            </h2>
+            <h2 className="text-lg font-bold">{orderToEdit ? `Editar OS #${orderToEdit.code}` : 'Nova Ordem de Serviço'}</h2>
             <p className="text-xs text-blue-200">Preencha os detalhes do serviço técnico</p>
           </div>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onClose();
-            }}
-            aria-label="Fechar formulário de OS"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-industrial-800 text-slate-300 hover:text-white active:scale-95 transition-colors"
-          >
+          <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-industrial-800 text-slate-300 hover:text-white active:scale-95 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Modal Form Scroll Area */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
-          {/* Status & Tech Responsible */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                Status da OS *
-              </label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as Order['status'])}
-                required
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-slate-50 font-semibold text-slate-800 text-sm focus:ring-2 focus:ring-industrial-800 focus:outline-hidden"
-              >
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Status da OS *</label>
+              <select value={status} onChange={(e) => setStatus(e.target.value as Order['status'])} required className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-slate-50 font-semibold text-slate-800 text-sm focus:ring-2 focus:ring-industrial-800 focus:outline-hidden">
                 <option value="orcamento">Orçamento (Pendente)</option>
                 <option value="agendado">Agendado</option>
                 <option value="em_andamento">Em Andamento (Em Campo)</option>
@@ -333,320 +231,73 @@ export const OrderFormModal: React.FC<OrderFormModalProps> = ({
                 <option value="cancelado">Cancelado</option>
               </select>
             </div>
-
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                Técnico Responsável *
-              </label>
-              <select
-                value={techId}
-                onChange={(e) => setTechId(e.target.value)}
-                required
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-slate-50 font-medium text-slate-800 text-sm focus:ring-2 focus:ring-industrial-800 focus:outline-hidden"
-              >
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Técnico Responsável *</label>
+              <select value={techId} onChange={(e) => setTechId(e.target.value)} required className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-slate-50 font-medium text-slate-800 text-sm focus:ring-2 focus:ring-industrial-800 focus:outline-hidden">
                 <option value="">Selecione o técnico...</option>
-                {profiles.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.role === 'adm' ? 'ADM' : 'Técnico'})
-                  </option>
-                ))}
+                {profiles.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.role === 'adm' ? 'ADM' : 'Técnico'})</option>)}
               </select>
             </div>
           </div>
 
-          {/* Client Selector OR Quick Client Registration */}
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                Cliente da OS *
-              </span>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsQuickClient(!isQuickClient);
-                }}
-                className="flex items-center gap-1 text-xs font-bold text-industrial-800 hover:text-industrial-600 p-1 rounded-md"
-              >
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Cliente da OS *</span>
+              <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsQuickClient(!isQuickClient); }} className="flex items-center gap-1 text-xs font-bold text-industrial-800 hover:text-industrial-600 p-1 rounded-md">
                 <UserPlus className="w-4 h-4" />
                 <span>{isQuickClient ? 'Selecionar Existente' : '+ Cadastrar Novo'}</span>
               </button>
             </div>
 
-            {!isQuickClient ? (
-              <select
-                value={clientId}
-                onChange={(e) => handleClientSelect(e.target.value)}
-                required
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white font-medium text-slate-800 text-sm focus:ring-2 focus:ring-industrial-800 focus:outline-hidden"
-              >
-                <option value="">Selecione o cliente cadastrado...</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} {c.phone ? `(${c.phone})` : ''}
-                  </option>
-                ))}
-              </select>
-            ) : (
+            {isQuickClient ? (
               <div className="space-y-2 pt-1 animate-in fade-in duration-150">
-                <input
-                  type="text"
-                  placeholder="Nome Completo do Cliente *"
-                  value={newClientName}
-                  onChange={(e) => setNewClientName(e.target.value)}
-                  required={isQuickClient}
-                  className="w-full px-3 py-2 rounded-xl border border-blue-300 bg-white text-sm focus:ring-2 focus:ring-industrial-800 focus:outline-hidden"
-                />
+                <input type="text" placeholder="Nome Completo do Cliente *" value={newClientName} onChange={(e) => setNewClientName(e.target.value)} required className="w-full px-3 py-2 rounded-xl border border-blue-300 bg-white text-sm focus:ring-2 focus:ring-industrial-800 focus:outline-hidden" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <input
-                    type="tel"
-                    placeholder="WhatsApp / Telefone"
-                    value={newClientPhone}
-                    onChange={(e) => setNewClientPhone(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm focus:ring-2 focus:ring-industrial-800 focus:outline-hidden"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Endereço (Rua, Número, Bairro)"
-                    value={newClientAddress}
-                    onChange={(e) => {
-                      setNewClientAddress(e.target.value);
-                      if (!address) setAddress(e.target.value);
-                    }}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm focus:ring-2 focus:ring-industrial-800 focus:outline-hidden"
-                  />
+                  <input type="tel" placeholder="WhatsApp / Telefone" value={newClientPhone} onChange={(e) => setNewClientPhone(e.target.value)} className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm focus:ring-2 focus:ring-industrial-800 focus:outline-hidden" />
+                  <input type="text" placeholder="Endereço" value={newClientAddress} onChange={(e) => { setNewClientAddress(e.target.value); if (!address) setAddress(e.target.value); }} className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm focus:ring-2 focus:ring-industrial-800 focus:outline-hidden" />
                 </div>
               </div>
-            )}
-          </div>
-
-          {/* Service Address */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1 flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-industrial-800" />
-              Endereço de Execução do Serviço
-            </label>
-            <input
-              type="text"
-              placeholder="Rua, número, complemento, bairro, cidade..."
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-800 focus:ring-2 focus:ring-industrial-800 focus:outline-hidden"
-            />
-          </div>
-
-          {/* Quick Service Catalog Suggestions */}
-          {servicesCatalog.length > 0 && (
-            <div>
-              <span className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amberAlert-500" />
-                Catálogo Rápido de Serviços (Toque para adicionar)
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {servicesCatalog.map((cat) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={(e) => handleAddCatalogService(cat, e)}
-                    className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-100 border border-slate-200 text-xs font-semibold text-slate-700 hover:text-industrial-900 active:scale-95 transition-all"
-                  >
-                    + {cat.title} (R$ {Number(cat.default_price).toFixed(0)})
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Description */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              Descrição do Serviço / Diagnóstico *
-            </label>
-            <textarea
-              rows={3}
-              placeholder="Detalhe o problema relatado e os procedimentos a executar..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              required
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-800 focus:ring-2 focus:ring-industrial-800 focus:outline-hidden"
-            />
-          </div>
-
-          {/* Schedule Date & Time */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-industrial-800" />
-                Data de Execução
-              </label>
-              <input
-                type="date"
-                value={scheduledAtDate}
-                onChange={(e) => setScheduledAtDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm font-medium focus:ring-2 focus:ring-industrial-800 focus:outline-hidden"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-industrial-800" />
-                Horário Estimado
-              </label>
-              <input
-                type="time"
-                value={scheduledAtTime}
-                onChange={(e) => setScheduledAtTime(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm font-medium focus:ring-2 focus:ring-industrial-800 focus:outline-hidden"
-              />
-            </div>
-          </div>
-
-          {/* Order Items & Stock Deduction */}
-          <div className="pt-2 border-t border-slate-200 space-y-3">
-            {isConcluded && (
-              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-2.5 text-amber-900 text-xs">
-                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            ) : selectedClient ? (
+              <div className="p-3 rounded-xl bg-white border border-green-500 flex items-center justify-between">
                 <div>
-                  <p className="font-bold">Ordem de Serviço já Concluída</p>
-                  <p className="mt-0.5 text-amber-800">
-                    A baixa dos materiais de estoque e a receita financeira já foram processadas.
-                    A alteração de itens de estoque está bloqueada para preservar a integridade contábil.
-                  </p>
+                  <p className="font-bold text-slate-900">{selectedClient.name}</p>
+                  <p className="text-xs text-slate-600">{selectedClient.phone || 'Sem telefone'} • {selectedClient.address || 'Sem endereço'}</p>
                 </div>
+                <button type="button" onClick={(e) => { e.preventDefault(); setClientId(''); }} className="p-2 hover:bg-slate-100 rounded-lg">
+                  <X className="w-4 h-4 text-red-600" />
+                </button>
               </div>
-            )}
-            <OrderItemsManager items={items} onChange={setItems} disabled={isConcluded} />
-          </div>
-
-          {/* Financials & Payment */}
-          <div className="p-4 rounded-2xl bg-industrial-50 border border-industrial-200 space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-industrial-900 mb-1">
-                  Valor Total do Serviço (R$) *
-                </label>
+            ) : (
+              <div className="relative">
                 <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-slate-400 font-bold text-sm">
-                    R$
-                  </span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={totalPrice}
-                    onChange={(e) => setTotalPrice(e.target.value)}
-                    required
-                    placeholder="0,00"
-                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-industrial-300 bg-white text-base font-bold text-slate-900 focus:ring-2 focus:ring-industrial-800 focus:outline-hidden"
-                  />
+                  <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                  <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Pesquisar cliente por nome, telefone ou endereço..." className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:ring-2 focus:ring-industrial-800 focus:outline-hidden" />
+                  {searchTerm && (
+                    <button type="button" onClick={() => setSearchTerm('')} className="absolute right-3 top-3"><X className="w-4 h-4 text-slate-400" /></button>
+                  )}
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-industrial-900 mb-1">
-                  Condição de Pagamento
-                </label>
-                <div className="grid grid-cols-2 gap-2 mb-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('pix')}
-                    className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition-all ${
-                      paymentMethod === 'pix'
-                        ? 'bg-green-600 text-white border-green-600'
-                        : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
-                    }`}
-                  >
-                    ⚡ PIX (À Vista)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('prazo')}
-                    className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition-all ${
-                      paymentMethod === 'prazo'
-                        ? 'bg-amber-500 text-white border-amber-500'
-                        : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
-                    }`}
-                  >
-                    🟡 A Prazo (Duplicata)
-                  </button>
-                </div>
-
-                {paymentMethod === 'prazo' && (
-                  <div className="space-y-2 animate-in slide-in-from-top-2">
-                    <input
-                      type="date"
-                      value={dueDate}
-                      onChange={(e) => setDueDate(e.target.value)}
-                      required
-                      className="w-full px-3 py-2.5 rounded-xl border border-amber-300 bg-white text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-hidden"
-                    />
-                    <div className="flex gap-2">
-                      {[7, 15, 30].map((days) => (
-                        <button
-                          key={days}
-                          type="button"
-                          onClick={() => setDueDate(addDaysToDate(days))}
-                          className="flex-1 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-xs font-bold rounded-lg text-slate-700 transition-colors"
-                        >
-                          +{days} dias
-                        </button>
-                      ))}
-                    </div>
+                {searchTerm && (
+                  <div className="mt-2 space-y-1 max-h-48 overflow-y-auto">
+                    {filteredClients.length > 0 ? filteredClients.map(c => (
+                      <button key={c.id} type="button" onClick={(e) => { e.preventDefault(); handleClientSelect(c.id); }} className="w-full text-left p-2 rounded-lg hover:bg-slate-100 border border-transparent hover:border-slate-200">
+                        <p className="font-semibold text-sm text-slate-900">{c.name}</p>
+                        <p className="text-xs text-slate-600">{c.phone} • {c.address}</p>
+                      </button>
+                    )) : (
+                      <button type="button" onClick={() => { setIsQuickClient(true); setNewClientName(searchTerm); setSearchTerm(''); }} className="w-full text-left p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-sm font-semibold">
+                        Nenhum cliente encontrado para '{searchTerm}'. <span className="underline">+ Cadastrar como novo?</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-industrial-900 mb-1">
-                  Garantia (Dias)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={warrantyDays}
-                  onChange={(e) => setWarrantyDays(parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2.5 rounded-xl border border-industrial-300 bg-white text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-industrial-800 focus:outline-hidden"
-                />
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* Photos Upload: Antes e Depois */}
-          <div className="pt-2 border-t border-slate-200 space-y-4">
-            <OrderPhotoUpload
-              label="Fotos do Local / Equipamento (Antes)"
-              photos={photosBefore}
-              onChange={setPhotosBefore}
-            />
-
-            <OrderPhotoUpload
-              label="Fotos do Serviço Finalizado (Depois)"
-              photos={photosAfter}
-              onChange={setPhotosAfter}
-            />
-          </div>
-
-          {/* Modal Footer Actions */}
-          <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3 sticky bottom-0 bg-white py-3">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onClose();
-              }}
-              className="px-4 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-100 active:scale-95 transition-all"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-6 py-3 min-h-[50px] rounded-xl bg-industrial-800 hover:bg-industrial-700 active:scale-95 text-white font-bold text-sm shadow-lg flex items-center gap-2 transition-all disabled:opacity-50"
-            >
-              <Save className="w-5 h-5" />
-              <span>{saving ? 'Gravando...' : 'Salvar Ordem de Serviço'}</span>
-            </button>
-          </div>
+          <button type="submit" disabled={saving} className="w-full px-6 py-3 min-h-[50px] rounded-xl bg-industrial-800 hover:bg-industrial-700 text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50">
+            <Save className="w-5 h-5" />
+            <span>{saving ? 'Gravando...' : 'Salvar Ordem de Serviço'}</span>
+          </button>
         </form>
       </div>
     </div>
