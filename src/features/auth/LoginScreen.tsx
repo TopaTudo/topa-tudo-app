@@ -2,22 +2,29 @@ import React, { useState } from 'react';
 import { useAuth } from '@/core/context/AuthContext';
 import { useToast } from '@/core/context/ToastContext';
 import { Logo } from '@/core/ui/Logo';
-import { ShieldCheck, Wrench, Delete, ArrowLeft, Lock, UserCheck } from 'lucide-react';
+import { ShieldCheck, Wrench, Delete, ArrowLeft, Lock, UserCheck, AlertTriangle, RefreshCw, ExternalLink } from 'lucide-react';
 import type { Profile } from '@/core/types/database';
 
 export const LoginScreen: React.FC = () => {
-  const { profiles, loadingProfiles, loginWithPin } = useAuth();
+  const { profiles, loadingProfiles, connectionError, refreshProfiles, loginWithPin } = useAuth();
   const { error: toastError, success: toastSuccess } = useToast();
 
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [pin, setPin] = useState<string>('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [pinError, setPinError] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   const handleSelectProfile = (p: Profile) => {
     setSelectedProfile(p);
     setPin('');
     setPinError(false);
+  };
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    await refreshProfiles();
+    setRetrying(false);
   };
 
   const handleKeyPress = async (digit: string) => {
@@ -33,14 +40,22 @@ export const LoginScreen: React.FC = () => {
 
     if (newPin.length === 4 && selectedProfile) {
       setIsVerifying(true);
-      const ok = await loginWithPin(selectedProfile.id, newPin);
-      if (ok) {
+      const res = await loginWithPin(selectedProfile.id, newPin);
+      if (res.success) {
         if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
         toastSuccess(`Bem-vindo, ${selectedProfile.name}!`);
+      } else if (res.errorType === 'connection_error') {
+        if (navigator.vibrate) navigator.vibrate(150);
+        setPinError(true);
+        toastError('Servidor Indisponível', res.message || 'Falha ao conectar com o Supabase. Verifique se o projeto está ativo.');
+        setTimeout(() => {
+          setPin('');
+          setPinError(false);
+        }, 1200);
       } else {
         if (navigator.vibrate) navigator.vibrate(150);
         setPinError(true);
-        toastError('PIN incorreto', 'Verifique o código de 4 dígitos digitado.');
+        toastError('PIN incorreto', res.message || 'Verifique o código de 4 dígitos digitado.');
         setTimeout(() => {
           setPin('');
           setPinError(false);
@@ -88,45 +103,96 @@ export const LoginScreen: React.FC = () => {
       <main className="flex-1 flex flex-col justify-center max-w-sm w-full mx-auto my-auto py-4">
         {!selectedProfile ? (
           <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            {connectionError && (
+              <div className="p-3.5 rounded-2xl bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-1">
+                  <p className="font-bold text-white">Servidor Supabase Inacessível</p>
+                  <p className="text-[11px] leading-relaxed text-rose-200/90">
+                    O projeto no Supabase pode estar <strong>pausado por inatividade</strong>. Acesse o painel para reativar.
+                  </p>
+                  <div className="pt-1 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleRetry}
+                      disabled={retrying}
+                      className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-[10px] flex items-center gap-1 active:scale-95 transition-all disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${retrying ? 'animate-spin' : ''}`} />
+                      <span>{retrying ? 'Tentando...' : 'Reconectar'}</span>
+                    </button>
+                    <a
+                      href="https://supabase.com/dashboard/project/nlnkwrfzqvhncwfuuogo"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-[10px] flex items-center gap-1 active:scale-95 transition-all"
+                    >
+                      <span>Painel Supabase</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="text-center mb-4">
               <h2 className="text-lg font-bold text-slate-100">Quem está acessando?</h2>
               <p className="text-xs text-slate-400">Toque no seu perfil para entrar</p>
             </div>
 
-            <div className="grid grid-cols-1 gap-3">
-              {profiles.map((p) => {
-                const isAdmin = p.role === 'adm';
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => handleSelectProfile(p)}
-                    className="flex items-center justify-between p-4 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 active:scale-[0.98] transition-all shadow-lg min-h-[64px]"
-                  >
-                    <div className="flex items-center gap-3.5 text-left">
-                      <div
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${
-                          isAdmin
-                            ? 'bg-amber-500/20 text-amberAlert-500 border border-amber-500/40'
-                            : 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
-                        }`}
-                      >
-                        {isAdmin ? <ShieldCheck className="w-6 h-6" /> : <Wrench className="w-6 h-6" />}
-                      </div>
-                      <div>
-                        <div className="font-bold text-base text-white">{p.name}</div>
-                        <div className="text-xs text-slate-400 font-medium tracking-wide uppercase">
-                          {isAdmin ? 'Administrador' : 'Técnico de Campo'}
+            {profiles.length === 0 ? (
+              <div className="p-6 rounded-2xl bg-slate-800/80 border border-slate-700 text-center space-y-3">
+                <AlertTriangle className="w-8 h-8 text-amberAlert-500 mx-auto" />
+                <h3 className="font-bold text-white text-sm">Nenhum perfil carregado</h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Não foi possível comunicar com o banco de dados para listar os usuários. Reative o projeto no Supabase Dashboard e clique em reconectar.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  disabled={retrying}
+                  className="w-full py-2.5 px-4 rounded-xl bg-industrial-800 hover:bg-industrial-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${retrying ? 'animate-spin' : ''}`} />
+                  <span>{retrying ? 'Verificando...' : 'Tentar Novamente'}</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                {profiles.map((p) => {
+                  const isAdmin = p.role === 'adm';
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => handleSelectProfile(p)}
+                      className="flex items-center justify-between p-4 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 active:scale-[0.98] transition-all shadow-lg min-h-[64px]"
+                    >
+                      <div className="flex items-center gap-3.5 text-left">
+                        <div
+                          className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${
+                            isAdmin
+                              ? 'bg-amber-500/20 text-amberAlert-500 border border-amber-500/40'
+                              : 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
+                          }`}
+                        >
+                          {isAdmin ? <ShieldCheck className="w-6 h-6" /> : <Wrench className="w-6 h-6" />}
+                        </div>
+                        <div>
+                          <div className="font-bold text-base text-white">{p.name}</div>
+                          <div className="text-xs text-slate-400 font-medium tracking-wide uppercase">
+                            {isAdmin ? 'Administrador' : 'Técnico de Campo'}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-700/60 text-slate-300">
-                      Entrar →
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-700/60 text-slate-300">
+                        Entrar →
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-3 duration-200">

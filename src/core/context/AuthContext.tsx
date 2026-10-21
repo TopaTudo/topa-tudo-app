@@ -2,13 +2,20 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { supabase } from '../supabase';
 import type { Profile } from '../types/database';
 
+export interface LoginPinResult {
+  success: boolean;
+  errorType?: 'invalid_pin' | 'connection_error' | 'profile_not_found';
+  message?: string;
+}
+
 interface AuthContextData {
   currentProfile: Profile | null;
   profiles: Profile[];
   loadingProfiles: boolean;
+  connectionError: boolean;
   isAdmin: boolean;
   isTech: boolean;
-  loginWithPin: (profileId: string, pin: string) => Promise<boolean>;
+  loginWithPin: (profileId: string, pin: string) => Promise<LoginPinResult>;
   logout: () => void;
   refreshProfiles: () => Promise<void>;
 }
@@ -39,6 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [loadingProfiles, setLoadingProfiles] = useState(true);
+  const [connectionError, setConnectionError] = useState(false);
 
   const restoreFromCache = useCallback(() => {
     try {
@@ -73,11 +81,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Erro ao buscar perfis (restaurando do cache local):', error);
+        setConnectionError(true);
         restoreFromCache();
         return;
       }
 
       if (data) {
+        setConnectionError(false);
         setProfiles(data as Profile[]);
         try {
           localStorage.setItem(PROFILES_CACHE_KEY, JSON.stringify(data));
@@ -101,6 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (err) {
       console.error('Falha de conexão com perfis (modo offline ativado):', err);
+      setConnectionError(true);
       restoreFromCache();
     } finally {
       setLoadingProfiles(false);
@@ -111,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshProfiles();
   }, [refreshProfiles]);
 
-  const loginWithPin = async (profileId: string, pin: string): Promise<boolean> => {
+  const loginWithPin = async (profileId: string, pin: string): Promise<LoginPinResult> => {
     try {
       // Validação segura de PIN via RPC no PostgreSQL
       const { data, error } = await supabase.rpc('verify_user_pin', {
@@ -121,7 +132,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Erro ao verificar PIN via RPC:', error);
-        return false;
+        return {
+          success: false,
+          errorType: 'connection_error',
+          message: 'Falha de comunicação com o banco de dados Supabase. O projeto pode estar pausado ou offline.',
+        };
       }
 
       if (data === true) {
@@ -134,13 +149,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } catch (e) {
             console.warn('Erro ao cachear perfil atual:', e);
           }
-          return true;
+          return { success: true };
         }
+        return {
+          success: false,
+          errorType: 'profile_not_found',
+          message: 'Perfil não encontrado na memória.',
+        };
       }
-      return false;
-    } catch (err) {
+      return {
+        success: false,
+        errorType: 'invalid_pin',
+        message: 'PIN incorreto. Verifique o código de 4 dígitos digitado.',
+      };
+    } catch (err: any) {
       console.error('Exceção ao autenticar com PIN:', err);
-      return false;
+      return {
+        success: false,
+        errorType: 'connection_error',
+        message: err.message || 'Falha de conexão com o servidor.',
+      };
     }
   };
 
@@ -159,6 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentProfile,
         profiles,
         loadingProfiles,
+        connectionError,
         isAdmin,
         isTech,
         loginWithPin,
